@@ -19,7 +19,7 @@ export default async function MainLayout({ children }) {
       <div className="w-full max-w-[480px] min-h-screen flex flex-col shadow-[0_0_40px_rgba(0,0,0,0.06)]">
         <TopBar />
         <div className="flex-1">{children}</div>
-        <BottomNav myUsername={profile?.username} />
+        <BottomNav myUsername={profile?.username} currentUserId={user.id} />
       </div>
     </div>
   );
