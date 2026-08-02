@@ -1,8 +1,10 @@
-"use client";
+          "use client";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, SendHorizontal, ImagePlus, X } from "lucide-react";
+import { ChevronLeft, SendHorizontal, ImagePlus, X, Smile } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+
+const STICKERS = ["❤️", "🔥", "😂", "😍", "👍", "🎉", "😭", "👀", "💀", "✨", "🙏", "😮"];
 
 export default function ChatThread({ conversationId, currentUserId, other, initialMessages }) {
   const supabase = createClient();
@@ -11,12 +13,26 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
   const [text, setText] = useState("");
   const [pendingFiles, setPendingFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
+  const [stickerPickerOpen, setStickerPickerOpen] = useState(false);
   const scrollRef = useRef(null);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [messages]);
+
+  useEffect(() => {
+    (async () => {
+      const { data: convo } = await supabase
+        .from("conversations")
+        .select("user_a, user_b")
+        .eq("id", conversationId)
+        .single();
+      if (!convo) return;
+      const field = convo.user_a === currentUserId ? "last_read_a" : "last_read_b";
+      await supabase.from("conversations").update({ [field]: new Date().toISOString() }).eq("id", conversationId);
+    })();
+  }, [conversationId, currentUserId, supabase]);
 
   useEffect(() => {
     const channel = supabase
@@ -52,6 +68,18 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
 
   const removePending = (i) => {
     setPendingFiles((prev) => prev.filter((_, idx) => idx !== i));
+  };
+
+  const sendSticker = async (emoji) => {
+    setStickerPickerOpen(false);
+    const { data, error } = await supabase
+      .from("messages")
+      .insert({ conversation_id: conversationId, sender_id: currentUserId, text: emoji, media_type: "sticker" })
+      .select()
+      .single();
+    if (!error && data) {
+      setMessages((prev) => (prev.some((m) => m.id === data.id) ? prev : [...prev, data]));
+    }
   };
 
   const send = async () => {
@@ -101,12 +129,14 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
     <div className="flex flex-col h-screen">
       <div className="flex items-center gap-2.5 px-4 py-3.5 border-b border-hairline">
         <button onClick={() => router.push("/messages")}><ChevronLeft size={22} /></button>
-        <img
-          src={other?.avatar_url || `https://picsum.photos/seed/${other?.username}/200/200`}
-          alt=""
-          className="w-8 h-8 rounded-full object-cover"
-        />
-        <div className="font-semibold text-sm">{other?.username}</div>
+        <button onClick={() => router.push(`/profile/${other?.username}`)} className="flex items-center gap-2.5">
+          <img
+            src={other?.avatar_url || `https://picsum.photos/seed/${other?.username}/200/200`}
+            alt=""
+            className="w-8 h-8 rounded-full object-cover"
+          />
+          <div className="font-semibold text-sm">{other?.username}</div>
+        </button>
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4">
@@ -115,27 +145,45 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
         )}
         {messages.map((m) => (
           <div key={m.id} className={`flex mb-2 ${m.sender_id === currentUserId ? "justify-end" : "justify-start"}`}>
-            <div
-              className="max-w-[72%] rounded-2xl overflow-hidden text-[13.5px] leading-snug"
-              style={
-                m.media_url
-                  ? { background: "transparent" }
-                  : m.sender_id === currentUserId
-                  ? { background: "#1C1A17", color: "#fff", padding: "10px 14px" }
-                  : { background: "#fff", border: "1px solid #DCD6C8", color: "#1C1A17", padding: "10px 14px" }
-              }
-            >
-              {m.media_url && m.media_type === "image" && (
-                <img src={m.media_url} alt="" className="w-full max-w-[240px] rounded-2xl block" />
-              )}
-              {m.media_url && m.media_type === "video" && (
-                <video src={m.media_url} controls className="w-full max-w-[240px] rounded-2xl block" />
-              )}
-              {m.text && <div className={m.media_url ? "mt-1.5 px-1" : ""}>{m.text}</div>}
-            </div>
+            {m.media_type === "sticker" ? (
+              <div className="text-5xl leading-none px-1">{m.text}</div>
+            ) : (
+              <div
+                className="max-w-[72%] rounded-2xl overflow-hidden text-[13.5px] leading-snug"
+                style={
+                  m.media_url
+                    ? { background: "transparent" }
+                    : m.sender_id === currentUserId
+                    ? { background: "#1C1A17", color: "#fff", padding: "10px 14px" }
+                    : { background: "#fff", border: "1px solid #DCD6C8", color: "#1C1A17", padding: "10px 14px" }
+                }
+              >
+                {m.media_url && m.media_type === "image" && (
+                  <img src={m.media_url} alt="" className="w-full max-w-[240px] rounded-2xl block" />
+                )}
+                {m.media_url && m.media_type === "video" && (
+                  <video src={m.media_url} controls className="w-full max-w-[240px] rounded-2xl block" />
+                )}
+                {m.text && <div className={m.media_url ? "mt-1.5 px-1" : ""}>{m.text}</div>}
+              </div>
+            )}
           </div>
         ))}
       </div>
+
+      {stickerPickerOpen && (
+        <div className="grid grid-cols-6 gap-2 px-3 pt-2 pb-1">
+          {STICKERS.map((s) => (
+            <button
+              key={s}
+              onClick={() => sendSticker(s)}
+              className="text-3xl py-1.5 rounded-lg hover:bg-paperdim"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
 
       {pendingFiles.length > 0 && (
         <div className="px-3 pt-2 flex items-center gap-2 overflow-x-auto">
@@ -164,6 +212,13 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
           aria-label="Attach photos or videos"
         >
           <ImagePlus size={22} strokeWidth={1.6} />
+        </button>
+        <button
+          onClick={() => setStickerPickerOpen((o) => !o)}
+          className="flex-shrink-0 text-ink"
+          aria-label="Stickers"
+        >
+          <Smile size={22} strokeWidth={1.6} color={stickerPickerOpen ? "#FF6B35" : "#1C1A17"} />
         </button>
         <input
           ref={fileInputRef}
