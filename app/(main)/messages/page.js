@@ -7,9 +7,8 @@ export default async function InboxPage() {
 
   const { data: conversations } = await supabase
     .from("conversations")
-    .select("id, user_a, user_b, created_at")
-    .or(`user_a.eq.${user.id},user_b.eq.${user.id}`)
-    .order("created_at", { ascending: false });
+    .select("id, user_a, user_b, created_at, last_read_a, last_read_b")
+    .or(`user_a.eq.${user.id},user_b.eq.${user.id}`);
 
   const otherIds = (conversations || []).map((c) => (c.user_a === user.id ? c.user_b : c.user_a));
 
@@ -19,15 +18,19 @@ export default async function InboxPage() {
 
   const convoIds = (conversations || []).map((c) => c.id);
   const { data: lastMessages } = convoIds.length
-    ? await supabase.from("messages").select("conversation_id, text, sender_id, created_at").in("conversation_id", convoIds).order("created_at", { ascending: false })
+    ? await supabase.from("messages").select("conversation_id, text, media_type, sender_id, created_at").in("conversation_id", convoIds).order("created_at", { ascending: false })
     : { data: [] };
 
-  const enriched = (conversations || []).map((c) => {
-    const otherId = c.user_a === user.id ? c.user_b : c.user_a;
-    const other = (profiles || []).find((p) => p.id === otherId);
-    const last = (lastMessages || []).find((m) => m.conversation_id === c.id);
-    return { ...c, other, last };
-  });
+  const enriched = (conversations || [])
+    .map((c) => {
+      const otherId = c.user_a === user.id ? c.user_b : c.user_a;
+      const other = (profiles || []).find((p) => p.id === otherId);
+      const last = (lastMessages || []).find((m) => m.conversation_id === c.id);
+      const myLastRead = c.user_a === user.id ? c.last_read_a : c.last_read_b;
+      const unread = last && last.sender_id !== user.id && new Date(last.created_at) > new Date(myLastRead);
+      return { ...c, other, last, unread };
+    })
+    .sort((a, b) => new Date(b.last?.created_at || b.created_at) - new Date(a.last?.created_at || a.created_at));
 
   return (
     <div>
@@ -45,11 +48,14 @@ export default async function InboxPage() {
             className="w-11 h-11 rounded-full object-cover"
           />
           <div className="flex-1 min-w-0">
-            <div className="font-semibold text-[13.5px]">{c.other?.username}</div>
-            <div className="text-inksoft text-xs truncate">
-              {c.last ? (c.last.sender_id === user.id ? "You: " : "") + c.last.text : "Say hello"}
+            <div className={`text-[13.5px] ${c.unread ? "font-bold" : "font-semibold"}`}>{c.other?.username}</div>
+            <div className={`text-xs truncate ${c.unread ? "font-bold text-ink" : "text-inksoft"}`}>
+              {c.last
+                ? (c.last.sender_id === user.id ? "You: " : "") + (c.last.text || (c.last.media_type === "video" ? "Sent a video" : "Sent a photo"))
+                : "Say hello"}
             </div>
           </div>
+          {c.unread && <div className="w-2.5 h-2.5 rounded-full bg-amber flex-shrink-0" />}
         </Link>
       ))}
     </div>
