@@ -20,7 +20,7 @@ export default async function ConversationPage({ params }) {
 
   const { data: messages } = await supabase
     .from("messages")
-    .select("id, text, sender_id, created_at")
+    .select("id, text, sender_id, created_at, media_url, media_type")
     .eq("conversation_id", convo.id)
     .order("created_at", { ascending: true });
 
