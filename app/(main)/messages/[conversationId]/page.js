@@ -20,9 +20,14 @@ export default async function ConversationPage({ params }) {
 
   const { data: messages } = await supabase
     .from("messages")
-    .select("id, text, sender_id, created_at, media_url, media_type")
+    .select("id, text, sender_id, created_at, media_url, media_type, reply_to_id, edited_at, deleted")
     .eq("conversation_id", convo.id)
     .order("created_at", { ascending: true });
+
+  const messageIds = (messages || []).map((m) => m.id);
+  const { data: reactions } = messageIds.length
+    ? await supabase.from("message_reactions").select("message_id, user_id, emoji").in("message_id", messageIds)
+    : { data: [] };
 
   return (
     <ChatThread
@@ -30,6 +35,7 @@ export default async function ConversationPage({ params }) {
       currentUserId={user.id}
       other={other}
       initialMessages={messages || []}
+      initialReactions={reactions || []}
     />
   );
 }
