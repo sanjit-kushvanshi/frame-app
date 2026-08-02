@@ -1,45 +1,48 @@
 import { createClient } from "@/lib/supabase/server";
+import Link from "next/link";
 
 export default async function ActivityPage() {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  const { data: myPosts } = await supabase.from("posts").select("id").eq("user_id", user.id);
-  const myPostIds = (myPosts || []).map((p) => p.id);
+  const { data: notifications } = await supabase
+    .from("notifications")
+    .select("id, type, actor_id, post_id, excerpt, read, created_at, profiles!notifications_actor_id_fkey(username, avatar_url)")
+    .eq("recipient_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(50);
 
-  const [{ data: likes }, { data: comments }] = await Promise.all([
-    myPostIds.length
-      ? supabase.from("likes").select("post_id, user_id, created_at, profiles(username, avatar_url)").in("post_id", myPostIds).neq("user_id", user.id).order("created_at", { ascending: false }).limit(20)
-      : { data: [] },
-    myPostIds.length
-      ? supabase.from("comments").select("post_id, user_id, text, created_at, profiles(username, avatar_url)").in("post_id", myPostIds).neq("user_id", user.id).order("created_at", { ascending: false }).limit(20)
-      : { data: [] },
-  ]);
+  await supabase.from("notifications").update({ read: true }).eq("recipient_id", user.id).eq("read", false);
 
-  const events = [
-    ...(likes || []).map((l) => ({ ...l, type: "like" })),
-    ...(comments || []).map((c) => ({ ...c, type: "comment" })),
-  ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  const labelFor = (n) => {
+    if (n.type === "follow") return "started following you";
+    if (n.type === "like") return "liked your frame";
+    if (n.type === "comment") return `left a note: "${n.excerpt}"`;
+    if (n.type === "mention") return `mentioned you: "${n.excerpt}"`;
+    return "";
+  };
 
   return (
     <div className="p-4">
-      <div className="font-mono text-[11px] text-inksoft uppercase tracking-wide mb-2.5">Recent activity</div>
-      {events.length === 0 && (
-        <div className="text-inksoft text-sm py-10 text-center">No activity yet on your frames.</div>
+      <div className="font-mono text-[11px] text-inksoft uppercase tracking-wide mb-2.5">Activity</div>
+      {(!notifications || notifications.length === 0) && (
+        <div className="text-inksoft text-sm py-10 text-center">No activity yet.</div>
       )}
-      {events.map((e, i) => (
-        <div key={i} className="flex items-center gap-2.5 py-2">
+      {(notifications || []).map((n) => (
+        <Link
+          key={n.id}
+          href={n.type === "follow" ? `/profile/${n.profiles?.username}` : "/"}
+          className={`flex items-center gap-2.5 py-2.5 ${!n.read ? "font-semibold" : ""}`}
+        >
           <img
-            src={e.profiles?.avatar_url || `https://picsum.photos/seed/${e.profiles?.username}/200/200`}
+            src={n.profiles?.avatar_url || `https://picsum.photos/seed/${n.profiles?.username}/200/200`}
             alt=""
-            className="w-8.5 h-8.5 rounded-full object-cover"
-            style={{ width: 34, height: 34 }}
+            className="w-9 h-9 rounded-full object-cover flex-shrink-0"
           />
           <div className="text-[13px]">
-            <span className="font-semibold">{e.profiles?.username}</span>{" "}
-            {e.type === "like" ? "liked your frame" : `left a note: "${e.text}"`}
+            <span className="font-semibold">{n.profiles?.username}</span> {labelFor(n)}
           </div>
-        </div>
+        </Link>
       ))}
     </div>
   );
