@@ -1,4 +1,4 @@
-      "use client";
+"use client";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, SendHorizontal, ImagePlus, X } from "lucide-react";
@@ -9,8 +9,7 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
   const router = useRouter();
   const [messages, setMessages] = useState(initialMessages);
   const [text, setText] = useState("");
-  const [pendingFile, setPendingFile] = useState(null);
-  const [pendingPreview, setPendingPreview] = useState(null);
+  const [pendingFiles, setPendingFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
   const scrollRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -39,49 +38,62 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
     };
   }, [conversationId, supabase]);
 
-  const handleFile = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const isImage = file.type.startsWith("image/");
-    const isVideo = file.type.startsWith("video/");
-    if (!isImage && !isVideo) return;
-    setPendingFile(file);
-    setPendingPreview({ url: URL.createObjectURL(file), type: isImage ? "image" : "video" });
+  const handleFiles = (e) => {
+    const files = Array.from(e.target.files || []);
+    const valid = files.filter((f) => f.type.startsWith("image/") || f.type.startsWith("video/"));
+    const withPreviews = valid.map((file) => ({
+      file,
+      url: URL.createObjectURL(file),
+      type: file.type.startsWith("image/") ? "image" : "video",
+    }));
+    setPendingFiles((prev) => [...prev, ...withPreviews]);
+    e.target.value = "";
+  };
+
+  const removePending = (i) => {
+    setPendingFiles((prev) => prev.filter((_, idx) => idx !== i));
   };
 
   const send = async () => {
     const trimmed = text.trim();
-    if (!trimmed && !pendingFile) return;
+    if (!trimmed && pendingFiles.length === 0) return;
 
-    let media_url = null;
-    let media_type = null;
+    setUploading(true);
+    const newRows = [];
 
-    if (pendingFile) {
-      setUploading(true);
-      const ext = pendingFile.name.split(".").pop();
-      const path = `${conversationId}/${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage.from("messages").upload(path, pendingFile);
-      setUploading(false);
-      if (uploadError) {
-        alert("Couldn't send that file: " + uploadError.message);
-        return;
+    if (pendingFiles.length > 0) {
+      for (let i = 0; i < pendingFiles.length; i++) {
+        const { file, type } = pendingFiles[i];
+        const ext = file.name.split(".").pop();
+        const path = `${conversationId}/${Date.now()}-${i}.${ext}`;
+        const { error: uploadError } = await supabase.storage.from("messages").upload(path, file);
+        if (uploadError) {
+          alert("Couldn't send one of the files: " + uploadError.message);
+          continue;
+        }
+        const { data: pub } = supabase.storage.from("messages").getPublicUrl(path);
+        newRows.push({
+          conversation_id: conversationId,
+          sender_id: currentUserId,
+          text: i === 0 ? trimmed || null : null,
+          media_url: pub.publicUrl,
+          media_type: type,
+        });
       }
-      const { data: pub } = supabase.storage.from("messages").getPublicUrl(path);
-      media_url = pub.publicUrl;
-      media_type = pendingPreview.type;
+    } else {
+      newRows.push({ conversation_id: conversationId, sender_id: currentUserId, text: trimmed });
     }
 
     setText("");
-    setPendingFile(null);
-    setPendingPreview(null);
+    setPendingFiles([]);
 
-    const { data, error } = await supabase
-      .from("messages")
-      .insert({ conversation_id: conversationId, sender_id: currentUserId, text: trimmed || null, media_url, media_type })
-      .select()
-      .single();
+    const { data, error } = await supabase.from("messages").insert(newRows).select();
+    setUploading(false);
     if (!error && data) {
-      setMessages((prev) => (prev.some((m) => m.id === data.id) ? prev : [...prev, data]));
+      setMessages((prev) => {
+        const ids = new Set(prev.map((m) => m.id));
+        return [...prev, ...data.filter((m) => !ids.has(m.id))];
+      });
     }
   };
 
@@ -119,32 +131,29 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
               {m.media_url && m.media_type === "video" && (
                 <video src={m.media_url} controls className="w-full max-w-[240px] rounded-2xl block" />
               )}
-              {m.text && (
-                <div className={m.media_url ? "mt-1.5 px-1" : ""}>{m.text}</div>
-              )}
+              {m.text && <div className={m.media_url ? "mt-1.5 px-1" : ""}>{m.text}</div>}
             </div>
           </div>
         ))}
       </div>
 
-      {pendingPreview && (
-        <div className="px-3 pt-2 flex items-center gap-2">
-          <div className="relative">
-            {pendingPreview.type === "image" ? (
-              <img src={pendingPreview.url} alt="" className="w-16 h-16 rounded-lg object-cover" />
-            ) : (
-              <video src={pendingPreview.url} className="w-16 h-16 rounded-lg object-cover" />
-            )}
-            <button
-              onClick={() => {
-                setPendingFile(null);
-                setPendingPreview(null);
-              }}
-              className="absolute -top-1.5 -right-1.5 bg-ink text-white rounded-full w-5 h-5 flex items-center justify-center"
-            >
-              <X size={12} />
-            </button>
-          </div>
+      {pendingFiles.length > 0 && (
+        <div className="px-3 pt-2 flex items-center gap-2 overflow-x-auto">
+          {pendingFiles.map((p, i) => (
+            <div key={i} className="relative flex-shrink-0">
+              {p.type === "image" ? (
+                <img src={p.url} alt="" className="w-16 h-16 rounded-lg object-cover" />
+              ) : (
+                <video src={p.url} className="w-16 h-16 rounded-lg object-cover" />
+              )}
+              <button
+                onClick={() => removePending(i)}
+                className="absolute -top-1.5 -right-1.5 bg-ink text-white rounded-full w-5 h-5 flex items-center justify-center"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          ))}
         </div>
       )}
 
@@ -152,11 +161,18 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
         <button
           onClick={() => fileInputRef.current?.click()}
           className="flex-shrink-0 text-ink"
-          aria-label="Attach photo or video"
+          aria-label="Attach photos or videos"
         >
           <ImagePlus size={22} strokeWidth={1.6} />
         </button>
-        <input ref={fileInputRef} type="file" accept="image/*,video/*" onChange={handleFile} className="hidden" />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*,video/*"
+          multiple
+          onChange={handleFiles}
+          className="hidden"
+        />
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -168,7 +184,7 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
           onClick={send}
           disabled={uploading}
           className="rounded-full w-[38px] h-[38px] flex items-center justify-center flex-shrink-0 text-white disabled:opacity-50"
-          style={{ background: text.trim() || pendingFile ? "#FF6B35" : "#DCD6C8" }}
+          style={{ background: text.trim() || pendingFiles.length > 0 ? "#FF6B35" : "#DCD6C8" }}
         >
           <SendHorizontal size={16} />
         </button>
