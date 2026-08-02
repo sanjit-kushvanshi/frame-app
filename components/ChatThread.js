@@ -1,10 +1,11 @@
-          "use client";
+"use client";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, SendHorizontal, ImagePlus, X, Smile } from "lucide-react";
+import { ChevronLeft, SendHorizontal, ImagePlus, X, Smile, Clapperboard } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 const STICKERS = ["❤️", "🔥", "😂", "😍", "👍", "🎉", "😭", "👀", "💀", "✨", "🙏", "😮"];
+const GIPHY_API_KEY = "fR9MLGSAdqsbgT2S4RXDUoKLEBnHEPqA";
 
 export default function ChatThread({ conversationId, currentUserId, other, initialMessages }) {
   const supabase = createClient();
@@ -14,6 +15,10 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
   const [pendingFiles, setPendingFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [stickerPickerOpen, setStickerPickerOpen] = useState(false);
+  const [gifPickerOpen, setGifPickerOpen] = useState(false);
+  const [gifQuery, setGifQuery] = useState("");
+  const [gifResults, setGifResults] = useState([]);
+  const [gifLoading, setGifLoading] = useState(false);
   const scrollRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -54,6 +59,31 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
     };
   }, [conversationId, supabase]);
 
+  useEffect(() => {
+    if (!gifPickerOpen) return;
+    const controller = new AbortController();
+    const run = async () => {
+      setGifLoading(true);
+      try {
+        const endpoint = gifQuery.trim()
+          ? `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_API_KEY}&q=${encodeURIComponent(gifQuery)}&limit=20&rating=pg-13`
+          : `https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_API_KEY}&limit=20&rating=pg-13`;
+        const res = await fetch(endpoint, { signal: controller.signal });
+        const json = await res.json();
+        setGifResults(json.data || []);
+      } catch (e) {
+        // ignore aborted/failed requests
+      } finally {
+        setGifLoading(false);
+      }
+    };
+    const t = setTimeout(run, 350);
+    return () => {
+      clearTimeout(t);
+      controller.abort();
+    };
+  }, [gifQuery, gifPickerOpen]);
+
   const handleFiles = (e) => {
     const files = Array.from(e.target.files || []);
     const valid = files.filter((f) => f.type.startsWith("image/") || f.type.startsWith("video/"));
@@ -75,6 +105,18 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
     const { data, error } = await supabase
       .from("messages")
       .insert({ conversation_id: conversationId, sender_id: currentUserId, text: emoji, media_type: "sticker" })
+      .select()
+      .single();
+    if (!error && data) {
+      setMessages((prev) => (prev.some((m) => m.id === data.id) ? prev : [...prev, data]));
+    }
+  };
+
+  const sendGif = async (gifUrl) => {
+    setGifPickerOpen(false);
+    const { data, error } = await supabase
+      .from("messages")
+      .insert({ conversation_id: conversationId, sender_id: currentUserId, media_url: gifUrl, media_type: "gif" })
       .select()
       .single();
     if (!error && data) {
@@ -158,7 +200,7 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
                     : { background: "#fff", border: "1px solid #DCD6C8", color: "#1C1A17", padding: "10px 14px" }
                 }
               >
-                {m.media_url && m.media_type === "image" && (
+                {m.media_url && (m.media_type === "image" || m.media_type === "gif") && (
                   <img src={m.media_url} alt="" className="w-full max-w-[240px] rounded-2xl block" />
                 )}
                 {m.media_url && m.media_type === "video" && (
@@ -174,14 +216,30 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
       {stickerPickerOpen && (
         <div className="grid grid-cols-6 gap-2 px-3 pt-2 pb-1">
           {STICKERS.map((s) => (
-            <button
-              key={s}
-              onClick={() => sendSticker(s)}
-              className="text-3xl py-1.5 rounded-lg hover:bg-paperdim"
-            >
+            <button key={s} onClick={() => sendSticker(s)} className="text-3xl py-1.5 rounded-lg hover:bg-paperdim">
               {s}
             </button>
           ))}
+        </div>
+      )}
+
+      {gifPickerOpen && (
+        <div className="border-t border-hairline">
+          <input
+            value={gifQuery}
+            onChange={(e) => setGifQuery(e.target.value)}
+            placeholder="Search GIFs..."
+            className="w-full px-4 py-2.5 text-[13.5px] outline-none bg-paperdim"
+          />
+          <div className="grid grid-cols-3 gap-1 p-2 max-h-[220px] overflow-y-auto">
+            {gifLoading && <div className="col-span-3 text-center text-xs text-inksoft py-4">Loading...</div>}
+            {!gifLoading &&
+              gifResults.map((g) => (
+                <button key={g.id} onClick={() => sendGif(g.images.fixed_height.url)} className="aspect-square overflow-hidden rounded">
+                  <img src={g.images.fixed_height_small.url} alt="" className="w-full h-full object-cover" />
+                </button>
+              ))}
+          </div>
         </div>
       )}
 
@@ -206,28 +264,30 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
       )}
 
       <div className="flex gap-2 p-3 border-t border-hairline items-center">
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          className="flex-shrink-0 text-ink"
-          aria-label="Attach photos or videos"
-        >
+        <button onClick={() => fileInputRef.current?.click()} className="flex-shrink-0 text-ink" aria-label="Attach photos or videos">
           <ImagePlus size={22} strokeWidth={1.6} />
         </button>
         <button
-          onClick={() => setStickerPickerOpen((o) => !o)}
+          onClick={() => {
+            setStickerPickerOpen((o) => !o);
+            setGifPickerOpen(false);
+          }}
           className="flex-shrink-0 text-ink"
           aria-label="Stickers"
         >
           <Smile size={22} strokeWidth={1.6} color={stickerPickerOpen ? "#FF6B35" : "#1C1A17"} />
         </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*,video/*"
-          multiple
-          onChange={handleFiles}
-          className="hidden"
-        />
+        <button
+          onClick={() => {
+            setGifPickerOpen((o) => !o);
+            setStickerPickerOpen(false);
+          }}
+          className="flex-shrink-0 text-ink"
+          aria-label="GIFs"
+        >
+          <Clapperboard size={22} strokeWidth={1.6} color={gifPickerOpen ? "#FF6B35" : "#1C1A17"} />
+        </button>
+        <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple onChange={handleFiles} className="hidden" />
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
