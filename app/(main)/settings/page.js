@@ -42,19 +42,32 @@ export default function SettingsPage() {
     setAvatarUrl(data.publicUrl);
   };
 
+  const handleUsernameChange = (e) => {
+    const clean = e.target.value.toLowerCase().replace(/[^a-z0-9._]/g, "");
+    setUsername(clean);
+  };
+
   const save = async () => {
+    if (!username.trim()) {
+      setError("Username can't be empty.");
+      return;
+    }
     setSaving(true);
     setError("");
     const { error: updateErr } = await supabase
       .from("profiles")
-      .update({ bio, avatar_url: avatarUrl })
+      .update({ username: username.trim(), bio, avatar_url: avatarUrl })
       .eq("id", userId);
     setSaving(false);
     if (updateErr) {
-      setError(updateErr.message);
+      if (updateErr.code === "23505") {
+        setError("That username is already taken.");
+      } else {
+        setError(updateErr.message);
+      }
       return;
     }
-    router.push(`/profile/${username}`);
+    router.push(`/profile/${username.trim()}`);
     router.refresh();
   };
 
@@ -73,14 +86,21 @@ export default function SettingsPage() {
         <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarFile} className="hidden" />
       </div>
 
-      <div className="font-mono text-[11px] text-inksoft mb-1">@{username} (username can't be changed yet)</div>
+      <label className="font-mono text-[11px] text-inksoft mb-1 block">Username</label>
+      <input
+        value={username}
+        onChange={handleUsernameChange}
+        placeholder="username"
+        className="w-full border border-hairline rounded-lg px-3 py-2.5 text-sm bg-white outline-none"
+      />
 
+      <label className="font-mono text-[11px] text-inksoft mt-4 mb-1 block">Bio</label>
       <textarea
         value={bio}
         onChange={(e) => setBio(e.target.value)}
         rows={3}
         placeholder="Bio"
-        className="w-full mt-2 border border-hairline rounded-lg p-3 text-sm bg-white outline-none resize-none"
+        className="w-full border border-hairline rounded-lg p-3 text-sm bg-white outline-none resize-none"
       />
       {error && <div className="text-amber text-xs mt-2">{error}</div>}
       <button
