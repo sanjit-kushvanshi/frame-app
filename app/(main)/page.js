@@ -6,21 +6,42 @@ export default async function FeedPage() {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
+  const { data: myProfile } = await supabase.from("profiles").select("username, avatar_url").eq("id", user.id).single();
+
   const { data: posts } = await supabase
     .from("posts")
     .select("id, image_url, caption, location, created_at, user_id, profiles(username, avatar_url)")
+    .eq("is_reel", false)
     .order("created_at", { ascending: false });
 
   const postIds = (posts || []).map((p) => p.id);
 
-  const [{ data: likes }, { data: saves }, { data: comments }, { data: people }] = await Promise.all([
+  const [{ data: likes }, { data: saves }, { data: comments }, { data: people }, { data: allStories }] = await Promise.all([
     postIds.length ? supabase.from("likes").select("post_id, user_id").in("post_id", postIds) : { data: [] },
     postIds.length ? supabase.from("saves").select("post_id, user_id").eq("user_id", user.id).in("post_id", postIds) : { data: [] },
     postIds.length
       ? supabase.from("comments").select("id, post_id, text, user_id, profiles(username)").in("post_id", postIds)
       : { data: [] },
-    supabase.from("profiles").select("id, username, avatar_url").neq("id", user.id).limit(12),
+    supabase.from("profiles").select("id, username, avatar_url").neq("id", user.id).limit(30),
+    supabase
+      .from("stories")
+      .select("id, user_id, media_url, media_type, created_at, profiles(username, avatar_url)")
+      .gt("expires_at", new Date().toISOString())
+      .order("created_at", { ascending: true }),
   ]);
+
+  const myStories = (allStories || []).filter((s) => s.user_id === user.id);
+
+  const otherStoriesByUser = {};
+  (allStories || [])
+    .filter((s) => s.user_id !== user.id)
+    .forEach((s) => {
+      if (!otherStoriesByUser[s.user_id]) {
+        otherStoriesByUser[s.user_id] = { user_id: s.user_id, username: s.profiles?.username, avatar_url: s.profiles?.avatar_url, stories: [] };
+      }
+      otherStoriesByUser[s.user_id].stories.push(s);
+    });
+  const storyGroups = Object.values(otherStoriesByUser);
 
   const total = (posts || []).length;
   const enriched = (posts || []).map((p, i) => ({
@@ -34,7 +55,7 @@ export default async function FeedPage() {
 
   return (
     <div>
-      <StoriesRow people={people} />
+      <StoriesRow myUsername={myProfile?.username} myAvatar={myProfile?.avatar_url} myStories={myStories} groups={storyGroups} currentUserId={user.id} />
       {enriched.map((post) => (
         <PostCard key={post.id} post={post} currentUserId={user.id} />
       ))}
