@@ -1,100 +1,101 @@
 "use client";
-import { useState, useRef } from "react";
-import { useRouter } from "next/navigation";
-import { PlusSquare } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import StoryViewer from "@/components/StoryViewer";
 
-export default function StoriesRow({ myUsername, myAvatar, myStories, groups, currentUserId }) {
+const DURATION = 5000;
+
+export default function StoryViewer({ groups, startIndex, currentUserId, onClose }) {
   const supabase = createClient();
-  const router = useRouter();
-  const fileInputRef = useRef(null);
-  const [viewerIndex, setViewerIndex] = useState(null);
-  const [uploading, setUploading] = useState(false);
+  const [groupIndex, setGroupIndex] = useState(startIndex);
+  const [storyIndex, setStoryIndex] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const intervalRef = useRef(null);
+  const viewedRef = useRef(new Set());
 
-  const handleUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const ext = file.name.split(".").pop();
-      const path = `${user.id}/${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage.from("stories").upload(path, file);
-      if (uploadError) throw uploadError;
-      const { data: pub } = supabase.storage.from("stories").getPublicUrl(path);
-      const media_type = file.type.startsWith("video/") ? "video" : "image";
-      await supabase.from("stories").insert({ user_id: user.id, media_url: pub.publicUrl, media_type });
-      router.refresh();
-    } catch (err) {
-      alert("Couldn't post that story: " + err.message);
-    } finally {
-      setUploading(false);
-      e.target.value = "";
+  const group = groups?.[groupIndex];
+  const story = group?.stories?.[storyIndex];
+
+  useEffect(() => {
+    if (!story) return;
+    setProgress(0);
+
+    if (currentUserId && !viewedRef.current.has(story.id)) {
+      viewedRef.current.add(story.id);
+      supabase.from("story_views").upsert({ story_id: story.id, viewer_id: currentUserId }, { onConflict: "story_id,viewer_id" }).then(() => {});
+    }
+
+    const start = Date.now();
+    intervalRef.current = setInterval(() => {
+      const elapsed = Date.now() - start;
+      const pct = Math.min(100, (elapsed / DURATION) * 100);
+      setProgress(pct);
+      if (pct >= 100) {
+        clearInterval(intervalRef.current);
+        goNext();
+      }
+    }, 50);
+
+    return () => clearInterval(intervalRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupIndex, storyIndex]);
+
+  const goNext = () => {
+    if (!group) return;
+    if (storyIndex < group.stories.length - 1) {
+      setStoryIndex((i) => i + 1);
+    } else if (groupIndex < groups.length - 1) {
+      setGroupIndex((i) => i + 1);
+      setStoryIndex(0);
+    } else {
+      onClose();
     }
   };
 
+  const goPrev = () => {
+    if (storyIndex > 0) {
+      setStoryIndex((i) => i - 1);
+    } else if (groupIndex > 0) {
+      setGroupIndex((i) => i - 1);
+      setStoryIndex(0);
+    }
+  };
+
+  if (!group || !story) return null;
+
   return (
-    <div className="flex gap-4 px-4 py-3.5 overflow-x-auto border-b border-hairline">
-      <div className="flex flex-col items-center gap-1.5 flex-shrink-0" style={{ width: 64 }}>
-        <div
-          onClick={() => (myStories?.length > 0 ? setViewerIndex(-1) : fileInputRef.current?.click())}
-          className="relative w-[54px] h-[54px] rounded-full cursor-pointer"
-          style={myStories?.length > 0 ? { padding: 2, background: "conic-gradient(#FF6B35, #F4B942, #FF6B35)" } : {}}
-        >
-          <img
-            src={myAvatar || `https://picsum.photos/seed/${myUsername}/200/200`}
-            alt=""
-            className="w-full h-full rounded-full object-cover border-2 border-paper block"
-          />
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              fileInputRef.current?.click();
-            }}
-            className="absolute -bottom-0.5 -right-0.5 bg-amber text-white rounded-full w-[18px] h-[18px] flex items-center justify-center border-2 border-paper"
-          >
-            <PlusSquare size={10} />
+    <div className="fixed inset-0 bg-black z-[70] flex items-center justify-center">
+      <div className="relative w-full h-full max-w-[480px] mx-auto">
+        <div className="absolute top-2.5 left-2.5 right-2.5 flex gap-1 z-10">
+          {group.stories.map((s, i) => (
+            <div key={s.id} className="flex-1 h-[3px] bg-white/30 rounded-full overflow-hidden">
+              <div className="h-full bg-white" style={{ width: i < storyIndex ? "100%" : i === storyIndex ? `${progress}%` : "0%" }} />
+            </div>
+          ))}
+        </div>
+
+        <div className="absolute top-6 left-3 right-3 flex items-center justify-between z-10">
+          <div className="flex items-center gap-2">
+            <img src={group.avatar_url || `https://picsum.photos/seed/${group.username}/200/200`} alt="" className="w-8 h-8 rounded-full object-cover border border-white/40" />
+            <span className="text-white text-[13px] font-semibold">{group.username}</span>
+          </div>
+          <button onClick={onClose} className="text-white p-1">
+            <X size={22} />
           </button>
         </div>
-        <input ref={fileInputRef} type="file" accept="image/*,video/*" onChange={handleUpload} className="hidden" />
-        <span className="text-[11px] font-mono text-ink block w-full text-center overflow-hidden whitespace-nowrap text-ellipsis">
-          {uploading ? "posting..." : "you"}
-        </span>
-      </div>
 
-      {(groups || []).map((g, i) => (
-        <div
-          key={g.user_id}
-          onClick={() => setViewerIndex(i)}
-          className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer"
-          style={{ width: 64 }}
-        >
-          <div className="w-[54px] h-[54px] rounded-full p-[2px]" style={{ background: "conic-gradient(#FF6B35, #F4B942, #FF6B35)" }}>
-            <img
-              src={g.avatar_url || `https://picsum.photos/seed/${g.username}/200/200`}
-              alt={g.username}
-              className="w-full h-full rounded-full object-cover border-2 border-paper block"
-            />
-          </div>
-          <span className="text-[11px] font-mono text-ink block w-full text-center overflow-hidden whitespace-nowrap text-ellipsis">
-            {g.username}
-          </span>
+        {story.media_type === "video" ? (
+          <video src={story.media_url} autoPlay muted playsInline className="w-full h-full object-contain" />
+        ) : (
+          <img src={story.media_url} alt="" className="w-full h-full object-contain" />
+        )}
+
+        <div className="absolute inset-0 flex">
+          <button onClick={goPrev} className="w-1/3 h-full" aria-label="Previous" />
+          <div className="w-1/3 h-full" />
+          <button onClick={goNext} className="w-1/3 h-full" aria-label="Next" />
         </div>
-      ))}
-
-      {(!groups || groups.length === 0) && !myStories?.length && (
-        <span className="text-xs font-mono text-inksoft py-4">No one else here yet — invite someone.</span>
-      )}
-
-      {viewerIndex !== null && (
-        <StoryViewer
-          groups={viewerIndex === -1 ? [{ username: myUsername, avatar_url: myAvatar, stories: myStories }] : groups}
-          startIndex={viewerIndex === -1 ? 0 : viewerIndex}
-          currentUserId={currentUserId}
-          onClose={() => setViewerIndex(null)}
-        />
-      )}
+      </div>
     </div>
   );
 }
