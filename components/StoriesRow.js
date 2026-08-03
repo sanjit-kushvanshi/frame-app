@@ -5,7 +5,7 @@ import { PlusSquare } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import StoryViewer from "@/components/StoryViewer";
 
-export default function StoriesRow({ myUsername, myAvatar, myStories, groups }) {
+export default function StoriesRow({ myUsername, myAvatar, myStories, groups, currentUserId }) {
   const supabase = createClient();
   const router = useRouter();
   const fileInputRef = useRef(null);
@@ -89,13 +89,9 @@ export default function StoriesRow({ myUsername, myAvatar, myStories, groups }) 
 
       {viewerIndex !== null && (
         <StoryViewer
-          groups={
-            viewerIndex === -1
-              ? [{ username: myUsername, avatar_url: myAvatar, stories: myStories }]
-              : groups
-          }
+          groups={viewerIndex === -1 ? [{ username: myUsername, avatar_url: myAvatar, stories: myStories }] : groups}
           startIndex={viewerIndex === -1 ? 0 : viewerIndex}
-          currentUserId={undefined}
+          currentUserId={currentUserId}
           onClose={() => setViewerIndex(null)}
         />
       )}
