@@ -5,7 +5,7 @@ import { PlusSquare } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import StoryViewer from "@/components/StoryViewer";
 
-export default function StoriesRow({ myUsername, myAvatar, myStories, groups, currentUserId, debugTotal }) {
+export default function StoriesRow({ myUsername, myAvatar, myStories, groups, currentUserId, debugTotal, debugError }) {
   const supabase = createClient();
   const router = useRouter();
   const fileInputRef = useRef(null);
