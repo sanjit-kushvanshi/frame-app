@@ -89,9 +89,10 @@ export default function StoriesRow({ myUsername, myAvatar, myStories, groups, cu
 
       {viewerIndex !== null && (
         <StoryViewer
-          groups={viewerIndex === -1 ? [{ username: myUsername, avatar_url: myAvatar, stories: myStories }] : groups}
+          groups={viewerIndex === -1 ? [{ user_id: currentUserId, username: myUsername, avatar_url: myAvatar, stories: myStories }] : groups}
           startIndex={viewerIndex === -1 ? 0 : viewerIndex}
           currentUserId={currentUserId}
+          isOwnStory={viewerIndex === -1}
           onClose={() => setViewerIndex(null)}
         />
       )}
