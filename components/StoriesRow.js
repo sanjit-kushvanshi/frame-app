@@ -58,9 +58,12 @@ export default function StoriesRow({ myUsername, myAvatar, myStories, groups, cu
           </button>
         </div>
         <input ref={fileInputRef} type="file" accept="image/*,video/*" onChange={handleUpload} className="hidden" />
-        <span className="text-[11px] font-mono text-ink block w-full text-center overflow-hidden whitespace-nowrap text-ellipsis">
-            {uploading ? "posting..." : debugError ? `ERR: ${debugError}` : `you (${myStories?.length ?? "??"}/${debugTotal ?? "??"})`}
-        </span>
+        <div style={{ position: "fixed", top: 60, left: 10, right: 10, background: "#fff", border: "1px solid red", padding: 8, fontSize: 10, zIndex: 999, wordBreak: "break-word" }}>
+  {debugError || "no error"}
+</div>
+<span className="text-[11px] font-mono text-ink block w-full text-center overflow-hidden whitespace-nowrap text-ellipsis">
+  {uploading ? "posting..." : `you (${myStories?.length ?? "??"}/${debugTotal ?? "??"})`}
+</span>
       </div>
 
       {(groups || []).map((g, i) => (
