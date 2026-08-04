@@ -56,7 +56,7 @@ export default async function FeedPage() {
 
   return (
     <div>
-      <StoriesRow myUsername={myProfile?.username} myAvatar={myProfile?.avatar_url} myStories={myStories} groups={storyGroups} currentUserId={user.id} debugTotal={(allStories || []).length} />
+      <StoriesRow myUsername={myProfile?.username} myAvatar={myProfile?.avatar_url} myStories={myStories} groups={storyGroups} currentUserId={user.id} debugTotal={(allStories || []).length} debugError={storiesError?.message} />
       {enriched.map((post) => (
         <PostCard key={post.id} post={post} currentUserId={user.id} />
       ))}
