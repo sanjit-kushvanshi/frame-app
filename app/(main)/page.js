@@ -17,7 +17,7 @@ export default async function FeedPage() {
 
   const postIds = (posts || []).map((p) => p.id);
 
-  const [{ data: likes }, { data: saves }, { data: comments }, { data: people }, { data: allStories, error: storiesError }] = await Promise.all([
+  const [{ data: likes }, { data: saves }, { data: comments }, { data: people }, { data: allStories }] = await Promise.all([
     postIds.length ? supabase.from("likes").select("post_id, user_id").in("post_id", postIds) : { data: [] },
     postIds.length ? supabase.from("saves").select("post_id, user_id").eq("user_id", user.id).in("post_id", postIds) : { data: [] },
     postIds.length
@@ -31,10 +31,21 @@ export default async function FeedPage() {
       .order("created_at", { ascending: true }),
   ]);
 
-  const myStories = (allStories || []).filter((s) => s.user_id === user.id);
+  const storyIds = (allStories || []).map((s) => s.id);
+  const { data: storyLikes } = storyIds.length
+    ? await supabase.from("story_likes").select("story_id, user_id").in("story_id", storyIds)
+    : { data: [] };
+
+  const enrichedStories = (allStories || []).map((s) => ({
+    ...s,
+    likeCount: (storyLikes || []).filter((l) => l.story_id === s.id).length,
+    likedByMe: (storyLikes || []).some((l) => l.story_id === s.id && l.user_id === user.id),
+  }));
+
+  const myStories = enrichedStories.filter((s) => s.user_id === user.id);
 
   const otherStoriesByUser = {};
-  (allStories || [])
+  enrichedStories
     .filter((s) => s.user_id !== user.id)
     .forEach((s) => {
       if (!otherStoriesByUser[s.user_id]) {
@@ -56,7 +67,7 @@ export default async function FeedPage() {
 
   return (
     <div>
-      <StoriesRow myUsername={myProfile?.username} myAvatar={myProfile?.avatar_url} myStories={myStories} groups={storyGroups} currentUserId={user.id} debugTotal={(allStories || []).length} debugError={storiesError?.message} />
+      <StoriesRow myUsername={myProfile?.username} myAvatar={myProfile?.avatar_url} myStories={myStories} groups={storyGroups} currentUserId={user.id} />
       {enriched.map((post) => (
         <PostCard key={post.id} post={post} currentUserId={user.id} />
       ))}
