@@ -17,7 +17,7 @@ export default async function FeedPage() {
 
   const postIds = (posts || []).map((p) => p.id);
 
-  const [{ data: likes }, { data: saves }, { data: comments }, { data: people }, { data: allStories }] = await Promise.all([
+  const [{ data: likes }, { data: saves }, { data: comments }, { data: people }, { data: allStories, error: storiesError }] = await Promise.all([
     postIds.length ? supabase.from("likes").select("post_id, user_id").in("post_id", postIds) : { data: [] },
     postIds.length ? supabase.from("saves").select("post_id, user_id").eq("user_id", user.id).in("post_id", postIds) : { data: [] },
     postIds.length
