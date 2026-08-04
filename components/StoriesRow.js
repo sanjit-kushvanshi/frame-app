@@ -59,7 +59,7 @@ export default function StoriesRow({ myUsername, myAvatar, myStories, groups, cu
         </div>
         <input ref={fileInputRef} type="file" accept="image/*,video/*" onChange={handleUpload} className="hidden" />
         <span className="text-[11px] font-mono text-ink block w-full text-center overflow-hidden whitespace-nowrap text-ellipsis">
-        {uploading ? "posting..." : `you (${myStories?.length ?? "??"}/${debugTotal ?? "??"})`}
+            {uploading ? "posting..." : debugError ? `ERR: ${debugError}` : `you (${myStories?.length ?? "??"}/${debugTotal ?? "??"})`}
         </span>
       </div>
 
