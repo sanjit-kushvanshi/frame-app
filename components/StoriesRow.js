@@ -24,8 +24,7 @@ export default function StoriesRow({ myUsername, myAvatar, myStories, groups, cu
       if (uploadError) throw uploadError;
       const { data: pub } = supabase.storage.from("stories").getPublicUrl(path);
       const media_type = file.type.startsWith("video/") ? "video" : "image";
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-await supabase.from("stories").insert({ user_id: user.id, media_url: pub.publicUrl, media_type, expires_at: expiresAt });
+      await supabase.from("stories").insert({ user_id: user.id, media_url: pub.publicUrl, media_type });
       router.refresh();
     } catch (err) {
       alert("Couldn't post that story: " + err.message);
