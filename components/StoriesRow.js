@@ -5,7 +5,7 @@ import { PlusSquare } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import StoryViewer from "@/components/StoryViewer";
 
-export default function StoriesRow({ myUsername, myAvatar, myStories, groups, currentUserId, debugTotal, debugError }) {
+export default function StoriesRow({ myUsername, myAvatar, myStories, groups, currentUserId }) {
   const supabase = createClient();
   const router = useRouter();
   const fileInputRef = useRef(null);
@@ -58,12 +58,9 @@ export default function StoriesRow({ myUsername, myAvatar, myStories, groups, cu
           </button>
         </div>
         <input ref={fileInputRef} type="file" accept="image/*,video/*" onChange={handleUpload} className="hidden" />
-        <div style={{ position: "fixed", top: 60, left: 10, right: 10, background: "#fff", border: "1px solid red", padding: 8, fontSize: 10, zIndex: 999, wordBreak: "break-word" }}>
-  {debugError || "no error"}
-</div>
-<span className="text-[11px] font-mono text-ink block w-full text-center overflow-hidden whitespace-nowrap text-ellipsis">
-  {uploading ? "posting..." : `you (${myStories?.length ?? "??"}/${debugTotal ?? "??"})`}
-</span>
+        <span className="text-[11px] font-mono text-ink block w-full text-center overflow-hidden whitespace-nowrap text-ellipsis">
+          {uploading ? "posting..." : "you"}
+        </span>
       </div>
 
       {(groups || []).map((g, i) => (
