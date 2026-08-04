@@ -26,7 +26,7 @@ export default async function FeedPage() {
     supabase.from("profiles").select("id, username, avatar_url").neq("id", user.id).limit(30),
     supabase
       .from("stories")
-      .select("id, user_id, media_url, media_type, created_at, profiles(username, avatar_url)")
+      .select("id, user_id, media_url, media_type, created_at, profiles!user_id(username, avatar_url)")
       .gt("expires_at", new Date().toISOString())
       .order("created_at", { ascending: true }),
   ]);
