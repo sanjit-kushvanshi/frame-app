@@ -53,7 +53,7 @@ export default function TopBar({ currentUserId }) {
       setUnreadCount(count);
     };
 
-    loadCount();
+    loadCount().catch((err) => setUnreadCount(`ERR:${err.message}`));
 
     const channel = supabase
       .channel(`msg-badge:${currentUserId}`)
