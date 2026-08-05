@@ -307,14 +307,19 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
                     <div className="text-5xl leading-none px-1">{m.text}</div>
                   ) : (
                     <div
-                      className="max-w-[72%] rounded-2xl overflow-hidden text-[13.5px] leading-snug"
-                      style={
-                        m.media_url
+                      className="rounded-2xl text-[13.5px] leading-snug"
+                      style={{
+                        width: "fit-content",
+                        maxWidth: "72%",
+                        overflow: m.media_url ? "hidden" : "visible",
+                        whiteSpace: "pre-wrap",
+                        wordBreak: "break-word",
+                        ...(m.media_url
                           ? { background: "transparent" }
                           : isMe
                           ? { background: "#1C1A17", color: "#fff", padding: "10px 14px" }
-                          : { background: "#fff", border: "1px solid #DCD6C8", color: "#1C1A17", padding: "10px 14px" }
-                      }
+                          : { background: "#fff", border: "1px solid #DCD6C8", color: "#1C1A17", padding: "10px 14px" }),
+                      }}
                     >
                       {replied && (
                         <div
