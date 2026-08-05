@@ -50,7 +50,7 @@ export default function TopBar({ currentUserId }) {
           count += 1;
         }
       });
-      setUnreadCount(count);
+      setUnreadCount(`c${(conversations || []).length}m${(lastMessages || []).length}=${count}`);
     };
 
     loadCount().catch((err) => setUnreadCount(`ERR:${err.message}`));
