@@ -1,14 +1,12 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
-import { X, Heart, SendHorizontal } from "lucide-react";
+import { X, Heart, SendHorizontal, Eye } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 const DURATION = 5000;
 
 export default function StoryViewer({ groups, startIndex, currentUserId, isOwnStory, onClose }) {
   const supabase = createClient();
-  const router = useRouter();
   const [groupIndex, setGroupIndex] = useState(startIndex);
   const [storyIndex, setStoryIndex] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -18,6 +16,10 @@ export default function StoryViewer({ groups, startIndex, currentUserId, isOwnSt
   const [replyText, setReplyText] = useState("");
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  const [viewCount, setViewCount] = useState(0);
+  const [viewersOpen, setViewersOpen] = useState(false);
+  const [viewersList, setViewersList] = useState([]);
+  const [viewersLoading, setViewersLoading] = useState(false);
   const intervalRef = useRef(null);
   const viewedRef = useRef(new Set());
 
@@ -31,10 +33,19 @@ export default function StoryViewer({ groups, startIndex, currentUserId, isOwnSt
     setLikeCount(story.likeCount || 0);
     setReplyText("");
     setSent(false);
+    setViewersOpen(false);
 
     if (currentUserId && !viewedRef.current.has(story.id)) {
       viewedRef.current.add(story.id);
       supabase.from("story_views").upsert({ story_id: story.id, viewer_id: currentUserId }, { onConflict: "story_id,viewer_id" }).then(() => {});
+    }
+
+    if (isOwnStory) {
+      supabase
+        .from("story_views")
+        .select("*", { count: "exact", head: true })
+        .eq("story_id", story.id)
+        .then(({ count }) => setViewCount(count || 0));
     }
   }, [groupIndex, storyIndex, story?.id]);
 
@@ -86,6 +97,29 @@ export default function StoryViewer({ groups, startIndex, currentUserId, isOwnSt
       setLikeCount((c) => c + 1);
       await supabase.from("story_likes").insert({ story_id: story.id, user_id: currentUserId });
     }
+  };
+
+  const openViewers = async () => {
+    if (!story) return;
+    setViewersOpen(true);
+    setPaused(true);
+    setViewersLoading(true);
+    const [{ data: views }, { data: likesData }] = await Promise.all([
+      supabase
+        .from("story_views")
+        .select("viewer_id, viewed_at, profiles!viewer_id(username, avatar_url)")
+        .eq("story_id", story.id)
+        .order("viewed_at", { ascending: false }),
+      supabase.from("story_likes").select("user_id").eq("story_id", story.id),
+    ]);
+    const likedIds = new Set((likesData || []).map((l) => l.user_id));
+    setViewersList((views || []).map((v) => ({ ...v, liked: likedIds.has(v.viewer_id) })));
+    setViewersLoading(false);
+  };
+
+  const closeViewers = () => {
+    setViewersOpen(false);
+    setPaused(false);
   };
 
   const sendReply = async () => {
@@ -147,15 +181,8 @@ export default function StoryViewer({ groups, startIndex, currentUserId, isOwnSt
           <img src={story.media_url} alt="" className="w-full h-full object-contain" />
         )}
 
-        {!isOwnStory && (
+        {!viewersOpen && (
           <div className="absolute inset-0 flex" style={{ bottom: 70 }}>
-            <button onClick={goPrev} className="w-1/3 h-full" aria-label="Previous" />
-            <div className="w-1/3 h-full" />
-            <button onClick={goNext} className="w-1/3 h-full" aria-label="Next" />
-          </div>
-        )}
-        {isOwnStory && (
-          <div className="absolute inset-0 flex">
             <button onClick={goPrev} className="w-1/3 h-full" aria-label="Previous" />
             <div className="w-1/3 h-full" />
             <button onClick={goNext} className="w-1/3 h-full" aria-label="Next" />
@@ -164,9 +191,15 @@ export default function StoryViewer({ groups, startIndex, currentUserId, isOwnSt
 
         <div className="absolute bottom-0 left-0 right-0 p-3 flex items-center gap-2 z-10" style={{ background: "linear-gradient(transparent, rgba(0,0,0,0.5))" }}>
           {isOwnStory ? (
-            <div className="text-white text-[13px] font-mono flex items-center gap-1.5 py-2">
-              <Heart size={16} fill="#fff" /> {likeCount} like{likeCount === 1 ? "" : "s"}
-            </div>
+            <button onClick={openViewers} className="text-white text-[13px] font-mono flex items-center gap-1.5 py-2">
+              <Eye size={16} /> {viewCount} view{viewCount === 1 ? "" : "s"}
+              {likeCount > 0 && (
+                <>
+                  <span className="opacity-50 mx-1">·</span>
+                  <Heart size={14} fill="#FF6B35" color="#FF6B35" /> {likeCount}
+                </>
+              )}
+            </button>
           ) : (
             <>
               <input
@@ -189,6 +222,38 @@ export default function StoryViewer({ groups, startIndex, currentUserId, isOwnSt
             </>
           )}
         </div>
+
+        {viewersOpen && (
+          <div className="absolute inset-0 bg-black/60 z-20 flex items-end" onClick={closeViewers}>
+            <div onClick={(e) => e.stopPropagation()} className="bg-paper w-full max-h-[60%] rounded-t-2xl flex flex-col">
+              <div className="flex justify-center pt-2.5 pb-1">
+                <div className="w-9 h-1 rounded-full bg-hairline" />
+              </div>
+              <div className="flex justify-between items-center px-4 pb-3 pt-1.5 border-b border-hairline">
+                <span className="font-semibold text-sm">{viewCount} view{viewCount === 1 ? "" : "s"}</span>
+                <button onClick={closeViewers}><X size={20} /></button>
+              </div>
+              <div className="overflow-y-auto px-4 py-2 flex-1">
+                {viewersLoading && <div className="text-center text-inksoft text-sm py-6">Loading...</div>}
+                {!viewersLoading && viewersList.length === 0 && (
+                  <div className="text-center text-inksoft text-sm py-6">No views yet.</div>
+                )}
+                {!viewersLoading &&
+                  viewersList.map((v) => (
+                    <div key={v.viewer_id} className="flex items-center gap-2.5 py-2">
+                      <img
+                        src={v.profiles?.avatar_url || `https://picsum.photos/seed/${v.profiles?.username}/200/200`}
+                        alt=""
+                        className="w-9 h-9 rounded-full object-cover"
+                      />
+                      <span className="text-[13.5px] flex-1">{v.profiles?.username}</span>
+                      {v.liked && <Heart size={16} fill="#FF6B35" color="#FF6B35" />}
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
