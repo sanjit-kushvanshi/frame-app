@@ -80,11 +80,9 @@ export default function TopBar({ currentUserId }) {
         <div className="font-display italic font-semibold text-2xl">Frame</div>
         <Link href="/messages" aria-label="Messages" className="text-ink p-1 relative">
           <Send size={20} strokeWidth={1.6} />
-          {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 bg-amber text-white text-[9px] rounded-full min-w-[15px] h-[15px] flex items-center justify-center px-1">
-              {unreadCount > 9 ? "9+" : unreadCount}
-            </span>
-          )}
+          <span className="absolute -top-3 -right-3 bg-red-500 text-white text-[8px] rounded px-1 whitespace-nowrap">
+            {String(unreadCount)}
+          </span>
         </Link>
       </div>
       <div className="flex justify-between px-2.5 pb-1.5">
