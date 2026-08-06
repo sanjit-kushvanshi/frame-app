@@ -8,9 +8,9 @@ export default function BottomNav({ myUsername }) {
 
   const items = [
     { href: "/", icon: Home, match: (p) => p === "/" },
-    { href: "/search", icon: Search, match: (p) => p.startsWith("/search") },
     { href: "/reels", icon: Clapperboard, match: (p) => p.startsWith("/reels") },
     { href: "/new", icon: PlusSquare, match: (p) => p.startsWith("/new") },
+    { href: "/search", icon: Search, match: (p) => p.startsWith("/search") },
     { href: `/profile/${myUsername || ""}`, icon: User, match: (p) => p.startsWith("/profile/" + myUsername) },
   ];
   return (
