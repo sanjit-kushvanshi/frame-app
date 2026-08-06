@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Search, PlusSquare, Heart, User } from "lucide-react";
+import { Home, Search, PlusSquare, Heart, User, Clapperboard } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 export default function BottomNav({ myUsername, currentUserId }) {
@@ -42,6 +42,7 @@ export default function BottomNav({ myUsername, currentUserId }) {
   const items = [
     { href: "/", icon: Home, match: (p) => p === "/" },
     { href: "/search", icon: Search, match: (p) => p.startsWith("/search") },
+    { href: "/reels", icon: Clapperboard, match: (p) => p.startsWith("/reels") },
     { href: "/new", icon: PlusSquare, match: (p) => p.startsWith("/new") },
     { href: "/activity", icon: Heart, match: (p) => p.startsWith("/activity"), badge: true },
     { href: `/profile/${myUsername || ""}`, icon: User, match: (p) => p.startsWith("/profile/" + myUsername) },
@@ -52,7 +53,7 @@ export default function BottomNav({ myUsername, currentUserId }) {
         const active = match(pathname);
         return (
           <Link key={href} href={href} className="p-1.5 relative" aria-label={href}>
-            <Icon size={23} color={active ? "#FF6B35" : "#1C1A17"} strokeWidth={1.6} fill={active && Icon === Heart ? "#FF6B35" : "none"} />
+            <Icon size={22} color={active ? "#FF6B35" : "#1C1A17"} strokeWidth={1.6} fill={active && Icon === Heart ? "#FF6B35" : "none"} />
             {badge && unreadCount > 0 && (
               <span className="absolute -top-0.5 -right-0.5 bg-amber text-white text-[9px] rounded-full min-w-[15px] h-[15px] flex items-center justify-center px-1">
                 {unreadCount > 9 ? "9+" : unreadCount}
