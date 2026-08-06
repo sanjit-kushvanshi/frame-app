@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
-import { Send, LogOut } from "lucide-react";
+import { Send, Heart, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 export default function TopBar({ currentUserId }) {
@@ -10,6 +10,7 @@ export default function TopBar({ currentUserId }) {
   const router = useRouter();
   const pathname = usePathname();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [notifUnreadCount, setNotifUnreadCount] = useState(0);
   const myConvoIdsRef = useRef(new Set());
 
   const handleLogout = async () => {
@@ -71,6 +72,35 @@ export default function TopBar({ currentUserId }) {
     if (pathname.startsWith("/messages")) setUnreadCount(0);
   }, [pathname]);
 
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const loadNotifCount = async () => {
+      const { count } = await supabase
+        .from("notifications")
+        .select("*", { count: "exact", head: true })
+        .eq("recipient_id", currentUserId)
+        .eq("read", false);
+      setNotifUnreadCount(count || 0);
+    };
+    loadNotifCount();
+
+    const channel = supabase
+      .channel(`notif-badge:${currentUserId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications", filter: `recipient_id=eq.${currentUserId}` },
+        () => setNotifUnreadCount((c) => c + 1)
+      )
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
+  }, [currentUserId, supabase]);
+
+  useEffect(() => {
+    if (pathname.startsWith("/activity")) setNotifUnreadCount(0);
+  }, [pathname]);
+
   return (
     <div className="sticky top-0 z-20 bg-paper border-b border-hairline">
       <div className="flex items-center justify-between px-4 pt-3.5 pb-2.5">
@@ -78,14 +108,24 @@ export default function TopBar({ currentUserId }) {
           <LogOut size={18} strokeWidth={1.6} />
         </button>
         <div className="font-display italic font-semibold text-2xl">Frame</div>
-        <Link href="/messages" aria-label="Messages" className="text-ink p-1 relative">
-          <Send size={20} strokeWidth={1.6} />
-          {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 bg-amber text-white text-[9px] rounded-full min-w-[15px] h-[15px] flex items-center justify-center px-1">
-              {unreadCount > 9 ? "9+" : unreadCount}
-            </span>
-          )}
-        </Link>
+        <div className="flex items-center gap-1">
+          <Link href="/activity" aria-label="Notifications" className="text-ink p-1 relative">
+            <Heart size={20} strokeWidth={1.6} fill={pathname.startsWith("/activity") ? "#FF6B35" : "none"} color={pathname.startsWith("/activity") ? "#FF6B35" : "#1C1A17"} />
+            {notifUnreadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 bg-amber text-white text-[9px] rounded-full min-w-[15px] h-[15px] flex items-center justify-center px-1">
+                {notifUnreadCount > 9 ? "9+" : notifUnreadCount}
+              </span>
+            )}
+          </Link>
+          <Link href="/messages" aria-label="Messages" className="text-ink p-1 relative">
+            <Send size={20} strokeWidth={1.6} />
+            {unreadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 bg-amber text-white text-[9px] rounded-full min-w-[15px] h-[15px] flex items-center justify-center px-1">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
+          </Link>
+        </div>
       </div>
       <div className="flex justify-between px-2.5 pb-1.5">
         {Array.from({ length: 18 }).map((_, i) => (
