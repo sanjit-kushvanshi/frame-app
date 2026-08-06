@@ -14,7 +14,7 @@ export default function ReelCard({ post, currentUserId, isActive, onDeleted }) {
   const [likeCount, setLikeCount] = useState(post.likeCount);
   const [comments, setComments] = useState(post.comments);
   const [commentsOpen, setCommentsOpen] = useState(false);
-  const [muted, setMuted] = useState(true);
+  const [unmuted, setUnmuted] = useState(true);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
