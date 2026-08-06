@@ -10,6 +10,8 @@ export default function NewPostPage() {
   const fileInputRef = useRef(null);
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
+  const [fileType, setFileType] = useState("image");
+  const [postAsReel, setPostAsReel] = useState(false);
   const [caption, setCaption] = useState("");
   const [location, setLocation] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -18,12 +20,16 @@ export default function NewPostPage() {
   const handleFile = (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    if (!f.type.startsWith("image/")) {
-      setError("Please choose an image file.");
+    const isImage = f.type.startsWith("image/");
+    const isVideo = f.type.startsWith("video/");
+    if (!isImage && !isVideo) {
+      setError("Please choose an image or video file.");
       return;
     }
     setError("");
     setFile(f);
+    setFileType(isVideo ? "video" : "image");
+    setPostAsReel(isVideo);
     setPreview(URL.createObjectURL(f));
   };
 
@@ -46,10 +52,12 @@ export default function NewPostPage() {
         image_url: pub.publicUrl,
         caption,
         location: location || null,
+        media_type: fileType,
+        is_reel: fileType === "video" && postAsReel,
       });
       if (insertError) throw insertError;
 
-      router.push("/");
+      router.push(fileType === "video" && postAsReel ? "/reels" : "/");
       router.refresh();
     } catch (err) {
       setError(err.message || "Something went wrong publishing this frame.");
@@ -62,7 +70,7 @@ export default function NewPostPage() {
     <div className="flex flex-col">
       <div className="flex items-center justify-between px-4 py-4 border-b border-hairline">
         <button onClick={() => router.push("/")}><X size={22} /></button>
-        <div className="font-display italic text-[17px]">New frame</div>
+        <div className="font-display italic text-[17px]">{postAsReel ? "New reel" : "New frame"}</div>
         <button
           onClick={handlePublish}
           disabled={!file || uploading}
@@ -79,16 +87,27 @@ export default function NewPostPage() {
           className="w-full aspect-square rounded bg-paperdim flex items-center justify-center overflow-hidden cursor-pointer"
         >
           {preview ? (
-            <img src={preview} alt="preview" className="w-full h-full object-cover" />
+            fileType === "video" ? (
+              <video src={preview} controls className="w-full h-full object-cover" />
+            ) : (
+              <img src={preview} alt="preview" className="w-full h-full object-cover" />
+            )
           ) : (
             <div className="flex flex-col items-center gap-2 text-inksoft">
               <Upload size={26} />
-              <span className="font-mono text-xs">Tap to choose a photo</span>
+              <span className="font-mono text-xs">Tap to choose a photo or video</span>
             </div>
           )}
         </div>
-        <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFile} className="hidden" />
+        <input ref={fileInputRef} type="file" accept="image/*,video/*" onChange={handleFile} className="hidden" />
         {error && <div className="text-amber text-xs mt-2">{error}</div>}
+
+        {fileType === "video" && (
+          <label className="flex items-center gap-2 mt-3 text-[13px]">
+            <input type="checkbox" checked={postAsReel} onChange={(e) => setPostAsReel(e.target.checked)} className="w-4 h-4" />
+            Post to Reels
+          </label>
+        )}
 
         <textarea
           value={caption}
