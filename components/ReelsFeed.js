@@ -4,9 +4,10 @@ import { useRouter } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import ReelCard from "@/components/ReelCard";
 
-export default function ReelsFeed({ posts, currentUserId }) {
+export default function ReelsFeed({ posts: initialPosts, currentUserId }) {
   const router = useRouter();
   const containerRef = useRef(null);
+  const [posts, setPosts] = useState(initialPosts);
   const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
@@ -21,6 +22,10 @@ export default function ReelsFeed({ posts, currentUserId }) {
     container.addEventListener("scroll", onScroll, { passive: true });
     return () => container.removeEventListener("scroll", onScroll);
   }, []);
+
+  const handleDeleted = (postId) => {
+    setPosts((prev) => prev.filter((p) => p.id !== postId));
+  };
 
   if (!posts || posts.length === 0) {
     return (
@@ -46,7 +51,7 @@ export default function ReelsFeed({ posts, currentUserId }) {
       </button>
       {posts.map((post, i) => (
         <div key={post.id} className="h-screen w-full snap-start">
-          <ReelCard post={post} currentUserId={currentUserId} isActive={i === activeIndex} />
+          <ReelCard post={post} currentUserId={currentUserId} isActive={i === activeIndex} onDeleted={handleDeleted} />
         </div>
       ))}
     </div>
