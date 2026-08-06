@@ -11,7 +11,7 @@ export default async function FeedPage() {
 
   const { data: posts } = await supabase
     .from("posts")
-    .select("id, image_url, caption, location, created_at, user_id, profiles(username, avatar_url)")
+    .select("id, image_url, caption, location, created_at, user_id, profiles!user_id(username, avatar_url)")
     .eq("is_reel", false)
     .order("created_at", { ascending: false });
 
@@ -21,7 +21,7 @@ export default async function FeedPage() {
     postIds.length ? supabase.from("likes").select("post_id, user_id").in("post_id", postIds) : { data: [] },
     postIds.length ? supabase.from("saves").select("post_id, user_id").eq("user_id", user.id).in("post_id", postIds) : { data: [] },
     postIds.length
-      ? supabase.from("comments").select("id, post_id, text, user_id, profiles(username)").in("post_id", postIds)
+      ? supabase.from("comments").select("id, post_id, text, user_id, profiles!user_id(username)").in("post_id", postIds)
       : { data: [] },
     supabase.from("profiles").select("id, username, avatar_url").neq("id", user.id).limit(30),
     supabase
