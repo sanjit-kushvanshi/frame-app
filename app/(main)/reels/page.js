@@ -8,7 +8,7 @@ export default async function ReelsPage() {
 
   const { data: posts } = await supabase
     .from("posts")
-    .select("id, image_url, caption, location, created_at, user_id, profiles(username, avatar_url)")
+    .select("id, image_url, caption, location, created_at, user_id, profiles!user_id(username, avatar_url)")
     .eq("is_reel", true)
     .order("created_at", { ascending: false });
 
