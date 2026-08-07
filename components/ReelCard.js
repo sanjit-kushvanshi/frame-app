@@ -1,20 +1,20 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Heart, MessageCircle, Send, Volume2, VolumeX, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import CommentsSheet from "@/components/CommentsSheet";
+import ShareSheet from "@/components/ShareSheet";
 
 export default function ReelCard({ post, currentUserId, isActive, onDeleted }) {
   const supabase = createClient();
-  const router = useRouter();
   const videoRef = useRef(null);
   const [liked, setLiked] = useState(post.likedByMe);
   const [likeCount, setLikeCount] = useState(post.likeCount);
   const [comments, setComments] = useState(post.comments);
   const [commentsOpen, setCommentsOpen] = useState(false);
-  const [muted, setMuted] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [muted, setMuted] = useState(true);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -50,17 +50,6 @@ export default function ReelCard({ post, currentUserId, isActive, onDeleted }) {
       .select("id, text, user_id, profiles(username)")
       .single();
     if (!error && data) setComments((c) => [...c, data]);
-  };
-
-  const messageAuthor = async () => {
-    if (isMine) return;
-    const [a, b] = [currentUserId, post.user_id].sort();
-    let { data: convo } = await supabase.from("conversations").select("id").eq("user_a", a).eq("user_b", b).maybeSingle();
-    if (!convo) {
-      const { data: created } = await supabase.from("conversations").insert({ user_a: a, user_b: b }).select("id").single();
-      convo = created;
-    }
-    if (convo) router.push(`/messages/${convo.id}`);
   };
 
   const deleteReel = async () => {
@@ -119,13 +108,14 @@ export default function ReelCard({ post, currentUserId, isActive, onDeleted }) {
             <MessageCircle size={26} color="#fff" strokeWidth={1.6} />
             <span className="text-white text-[11px] font-mono">{comments.length}</span>
           </button>
-          <button onClick={messageAuthor} className="flex flex-col items-center gap-1" disabled={isMine}>
+          <button onClick={() => setShareOpen(true)} className="flex flex-col items-center gap-1">
             <Send size={24} color="#fff" strokeWidth={1.6} />
           </button>
         </div>
       </div>
 
       <CommentsSheet open={commentsOpen} onClose={() => setCommentsOpen(false)} comments={comments} onAddComment={addComment} />
+      <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} post={post} currentUserId={currentUserId} />
 
       {confirmingDelete && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-6" onClick={() => setConfirmingDelete(false)}>
