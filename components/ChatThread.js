@@ -1,13 +1,77 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { ChevronLeft, SendHorizontal, ImagePlus, X, Smile, Clapperboard, CornerUpLeft, Pencil, Trash2, Heart } from "lucide-react";
+import { ChevronLeft, SendHorizontal, ImagePlus, X, Smile, Clapperboard, CornerUpLeft, Pencil, Trash2, Heart, Mic, Square, Play, Pause } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 const STICKERS = ["❤️", "🔥", "😂", "😍", "👍", "🎉", "😭", "👀", "💀", "✨", "🙏", "😮"];
 const REACTION_EMOJIS = ["❤️", "😂", "😮", "😢", "👍", "🔥"];
 const GIPHY_API_KEY = "fR9MLGSAdqsbgT2S4RXDUoKLEBnHEPqA";
+
+function formatDuration(seconds) {
+  const s = Math.max(0, Math.floor(seconds || 0));
+  const m = Math.floor(s / 60);
+  const rem = s % 60;
+  return `${m}:${rem.toString().padStart(2, "0")}`;
+}
+
+function VoiceMessage({ url, isMe }) {
+  const audioRef = useRef(null);
+  const [playing, setPlaying] = useState(false);
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+
+  const toggle = (e) => {
+    e.stopPropagation();
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (playing) {
+      audio.pause();
+    } else {
+      audio.play();
+    }
+  };
+
+  const progress = duration > 0 ? currentTime / duration : 0;
+
+  return (
+    <div className="flex items-center gap-2.5 w-[190px] py-0.5">
+      <audio
+        ref={audioRef}
+        src={url}
+        preload="metadata"
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => setPlaying(false)}
+        onLoadedMetadata={(e) => setDuration(e.currentTarget.duration || 0)}
+        onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime || 0)}
+        className="hidden"
+      />
+      <button
+        onClick={toggle}
+        className="flex-shrink-0 rounded-full w-8 h-8 flex items-center justify-center"
+        style={{ background: isMe ? "rgba(255,255,255,0.15)" : "#F7F4EE" }}
+        aria-label={playing ? "Pause voice message" : "Play voice message"}
+      >
+        {playing ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
+      </button>
+      <div className="flex-1 flex flex-col gap-1 min-w-0">
+        <div
+          className="h-[3px] rounded-full overflow-hidden"
+          style={{ background: isMe ? "rgba(255,255,255,0.25)" : "#DCD6C8" }}
+        >
+          <div
+            className="h-full rounded-full"
+            style={{ width: `${Math.min(progress, 1) * 100}%`, background: isMe ? "#fff" : "#FF6B35" }}
+          />
+        </div>
+        <span className="text-[10.5px] opacity-75">
+          {formatDuration(playing || currentTime > 0 ? currentTime : duration)}
+        </span>
+      </div>
+    </div>
+  );
+}
 
 export default function ChatThread({ conversationId, currentUserId, other, initialMessages, initialReactions }) {
   const supabase = createClient();
@@ -27,9 +91,16 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
   const [replyingTo, setReplyingTo] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState("");
+  const [recording, setRecording] = useState(false);
+  const [recordSeconds, setRecordSeconds] = useState(0);
+  const [recordError, setRecordError] = useState("");
   const scrollRef = useRef(null);
   const fileInputRef = useRef(null);
   const messagesRef = useRef(messages);
+  const mediaRecorderRef = useRef(null);
+  const recordedChunksRef = useRef([]);
+  const recordTimerRef = useRef(null);
+  const mediaStreamRef = useRef(null);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -62,7 +133,7 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "messages", filter: `conversation_id=eq.${conversationId}` },
         (payload) => {
-          setMessages((prev) => prev.map((m) => (m.id === payload.new.id ? { ...m, ...payload.new } : m)));
+          setMessages((prev) => prev.map((m) => (m.id === payload.new.id ? payload.new : m)));
         }
       )
       .on("postgres_changes", { event: "*", schema: "public", table: "message_reactions" }, (payload) => {
@@ -83,6 +154,13 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
       supabase.removeChannel(channel);
     };
   }, [conversationId, supabase]);
+
+  useEffect(() => {
+    return () => {
+      clearInterval(recordTimerRef.current);
+      mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+    };
+  }, []);
 
   useEffect(() => {
     if (!gifPickerOpen) return;
@@ -142,6 +220,87 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
       .single();
     setReplyingTo(null);
     if (!error && data) setMessages((prev) => (prev.some((m) => m.id === data.id) ? prev : [...prev, data]));
+  };
+
+  const startRecording = async () => {
+    setRecordError("");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+      recordedChunksRef.current = [];
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/mp4";
+      const recorder = new MediaRecorder(stream, { mimeType });
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) recordedChunksRef.current.push(e.data);
+      };
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+      setRecording(true);
+      setRecordSeconds(0);
+      recordTimerRef.current = setInterval(() => setRecordSeconds((s) => s + 1), 1000);
+    } catch (err) {
+      setRecordError("Couldn't access microphone. Check your browser permissions.");
+    }
+  };
+
+  const cleanupRecording = () => {
+    clearInterval(recordTimerRef.current);
+    recordTimerRef.current = null;
+    mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+    mediaStreamRef.current = null;
+    setRecording(false);
+    setRecordSeconds(0);
+  };
+
+  const cancelRecording = () => {
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== "inactive") {
+      recorder.onstop = null;
+      recorder.stop();
+    }
+    recordedChunksRef.current = [];
+    cleanupRecording();
+  };
+
+  const stopAndSendRecording = () => {
+    const recorder = mediaRecorderRef.current;
+    if (!recorder || recorder.state === "inactive") {
+      cleanupRecording();
+      return;
+    }
+    recorder.onstop = async () => {
+      const mimeType = recorder.mimeType || "audio/webm";
+      const blob = new Blob(recordedChunksRef.current, { type: mimeType });
+      cleanupRecording();
+
+      if (blob.size === 0) return;
+
+      setUploading(true);
+      const ext = mimeType.includes("mp4") ? "m4a" : "webm";
+      const path = `${conversationId}/${Date.now()}-voice.${ext}`;
+      const { error: uploadError } = await supabase.storage.from("messages").upload(path, blob, { contentType: mimeType });
+      if (uploadError) {
+        setUploading(false);
+        alert("Couldn't send the voice note: " + uploadError.message);
+        return;
+      }
+      const { data: pub } = supabase.storage.from("messages").getPublicUrl(path);
+      const { data, error } = await supabase
+        .from("messages")
+        .insert({
+          conversation_id: conversationId,
+          sender_id: currentUserId,
+          media_url: pub.publicUrl,
+          media_type: "voice",
+          reply_to_id: replyingTo?.id || null,
+        })
+        .select()
+        .single();
+      setReplyingTo(null);
+      setUploading(false);
+      if (!error && data) setMessages((prev) => (prev.some((m) => m.id === data.id) ? prev : [...prev, data]));
+    };
+    recorder.stop();
   };
 
   const send = async () => {
@@ -215,7 +374,7 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
       .eq("id", editingId)
       .select()
       .single();
-    if (!error && data) setMessages((prev) => prev.map((m) => (m.id === data.id ? { ...m, ...data } : m)));
+    if (!error && data) setMessages((prev) => prev.map((m) => (m.id === data.id ? data : m)));
     setEditingId(null);
     setEditText("");
   };
@@ -229,7 +388,7 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
       .eq("id", id)
       .select()
       .single();
-    if (!error && data) setMessages((prev) => prev.map((m) => (m.id === data.id ? { ...m, ...data } : m)));
+    if (!error && data) setMessages((prev) => prev.map((m) => (m.id === data.id ? data : m)));
   };
 
   const toggleReaction = async (emoji) => {
@@ -288,35 +447,6 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
             );
           }
 
-          if (m.shared_post_id) {
-            return (
-              <div key={m.id} className={`flex flex-col mb-2.5 ${isMe ? "items-end" : "items-start"}`}>
-                <Link
-                  href={m.posts?.profiles?.username ? `/profile/${m.posts.profiles.username}` : "/"}
-                  className="w-[200px] rounded-xl overflow-hidden border border-hairline bg-white block"
-                >
-                  <div className="aspect-square relative bg-paperdim">
-                    {m.posts ? (
-                      m.posts.media_type === "video" ? (
-                        <video src={m.posts.image_url} className="w-full h-full object-cover" />
-                      ) : (
-                        <img src={m.posts.image_url} alt="" className="w-full h-full object-cover" />
-                      )
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-inksoft text-[11px] font-mono">Post unavailable</div>
-                    )}
-                  </div>
-                  {m.posts && (
-                    <div className="px-2.5 py-2 text-[11px]">
-                      <div className="font-semibold">{m.posts.profiles?.username}</div>
-                      {m.posts.caption && <div className="text-inksoft truncate">{m.posts.caption}</div>}
-                    </div>
-                  )}
-                </Link>
-              </div>
-            );
-          }
-
           return (
             <div key={m.id} className={`flex flex-col mb-2.5 ${isMe ? "items-end" : "items-start"}`}>
               {editingId === m.id ? (
@@ -337,21 +467,29 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
                     <div className="text-5xl leading-none px-1">{m.text}</div>
                   ) : (
                     <div
-                      className="max-w-[72%] rounded-2xl overflow-hidden text-[13.5px] leading-snug"
-                      style={
-                        m.media_url
+                      className="text-[13.5px] leading-snug"
+                      style={{
+                        width: "fit-content",
+                        maxWidth: "78%",
+                        borderRadius: "20px",
+                        overflow: m.media_url ? "hidden" : "visible",
+                        whiteSpace: "pre-wrap",
+                        wordBreak: "break-word",
+                        ...(m.media_url
                           ? { background: "transparent" }
                           : isMe
-                          ? { background: "#1C1A17", color: "#fff", padding: "10px 14px" }
-                          : { background: "#fff", border: "1px solid #DCD6C8", color: "#1C1A17", padding: "10px 14px" }
-                      }
+                          ? { background: "#1C1A17", color: "#fff", padding: "9px 16px" }
+                          : { background: "#fff", border: "1px solid #DCD6C8", color: "#1C1A17", padding: "9px 16px" }),
+                      }}
                     >
                       {replied && (
                         <div
                           className="text-[11px] mb-1.5 px-2 py-1 rounded-lg opacity-75 border-l-2"
                           style={{ borderColor: "#FF6B35", background: isMe ? "rgba(255,255,255,0.1)" : "#F7F4EE" }}
                         >
-                          {replied.deleted ? "Message unsent" : replied.text || (replied.media_type === "video" ? "Video" : "Photo")}
+                          {replied.deleted
+                            ? "Message unsent"
+                            : replied.text || (replied.media_type === "video" ? "Video" : replied.media_type === "voice" ? "Voice message" : "Photo")}
                         </div>
                       )}
                       {m.media_url && (m.media_type === "image" || m.media_type === "gif") && (
@@ -359,6 +497,11 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
                       )}
                       {m.media_url && m.media_type === "video" && (
                         <video src={m.media_url} controls onClick={(e) => e.stopPropagation()} className="w-full max-w-[240px] rounded-2xl block" />
+                      )}
+                      {m.media_url && m.media_type === "voice" && (
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <VoiceMessage url={m.media_url} isMe={isMe} />
+                        </div>
                       )}
                       {m.text && <div className={m.media_url ? "mt-1.5 px-1" : ""}>{m.text}</div>}
                       {m.edited_at && <div className="text-[10px] opacity-60 mt-0.5">(edited)</div>}
@@ -426,7 +569,7 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
       {replyingTo && (
         <div className="flex items-center justify-between px-4 py-2 border-t border-hairline bg-paperdim">
           <div className="text-[12px] text-inksoft truncate">
-            Replying to: {replyingTo.text || (replyingTo.media_type === "video" ? "Video" : "Photo")}
+            Replying to: {replyingTo.text || (replyingTo.media_type === "video" ? "Video" : replyingTo.media_type === "voice" ? "Voice message" : "Photo")}
           </div>
           <button onClick={() => setReplyingTo(null)}><X size={16} /></button>
         </div>
@@ -479,47 +622,94 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
         </div>
       )}
 
-      <div className="flex gap-2 p-3 border-t border-hairline items-center">
-        <button onClick={() => fileInputRef.current?.click()} className="flex-shrink-0 text-ink" aria-label="Attach photos or videos">
-          <ImagePlus size={22} strokeWidth={1.6} />
-        </button>
-        <button
-          onClick={() => {
-            setStickerPickerOpen((o) => !o);
-            setGifPickerOpen(false);
-          }}
-          className="flex-shrink-0 text-ink"
-          aria-label="Stickers"
-        >
-          <Smile size={22} strokeWidth={1.6} color={stickerPickerOpen ? "#FF6B35" : "#1C1A17"} />
-        </button>
-        <button
-          onClick={() => {
-            setGifPickerOpen((o) => !o);
-            setStickerPickerOpen(false);
-          }}
-          className="flex-shrink-0 text-ink"
-          aria-label="GIFs"
-        >
-          <Clapperboard size={22} strokeWidth={1.6} color={gifPickerOpen ? "#FF6B35" : "#1C1A17"} />
-        </button>
-        <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple onChange={handleFiles} className="hidden" />
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && send()}
-          placeholder="Message..."
-          className="flex-1 border border-hairline rounded-full px-3.5 py-2.5 text-[13.5px] bg-white outline-none"
-        />
-        <button
-          onClick={send}
-          disabled={uploading}
-          className="rounded-full w-[38px] h-[38px] flex items-center justify-center flex-shrink-0 text-white disabled:opacity-50"
-          style={{ background: text.trim() || pendingFiles.length > 0 ? "#FF6B35" : "#DCD6C8" }}
-        >
-          <SendHorizontal size={16} />
-        </button>
-      </div>
+      {recordError && (
+        <div className="px-4 pt-2 text-[11px] text-amber font-mono">{recordError}</div>
+      )}
+
+      {recording ? (
+        <div className="flex gap-2 p-3 border-t border-hairline items-center">
+          <button
+            onClick={cancelRecording}
+            className="flex-shrink-0 rounded-full w-[38px] h-[38px] flex items-center justify-center text-ink border border-hairline"
+            aria-label="Cancel recording"
+          >
+            <X size={16} />
+          </button>
+          <div className="flex-1 flex items-center gap-2.5 border border-hairline rounded-full px-3.5 py-2.5 bg-white">
+            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: "#FF6B35", animation: "pulse 1.2s infinite" }} />
+            <span className="text-[13.5px] font-mono text-ink">{formatDuration(recordSeconds)}</span>
+            <span className="text-[12px] text-inksoft ml-auto">Recording voice note...</span>
+          </div>
+          <button
+            onClick={stopAndSendRecording}
+            disabled={uploading}
+            className="rounded-full w-[38px] h-[38px] flex items-center justify-center flex-shrink-0 text-white disabled:opacity-50"
+            style={{ background: "#FF6B35" }}
+            aria-label="Stop and send voice note"
+          >
+            <Square size={14} fill="currentColor" />
+          </button>
+        </div>
+      ) : (
+        <div className="flex gap-2 p-3 border-t border-hairline items-center">
+          <button onClick={() => fileInputRef.current?.click()} className="flex-shrink-0 text-ink" aria-label="Attach photos or videos">
+            <ImagePlus size={22} strokeWidth={1.6} />
+          </button>
+          <button
+            onClick={() => {
+              setStickerPickerOpen((o) => !o);
+              setGifPickerOpen(false);
+            }}
+            className="flex-shrink-0 text-ink"
+            aria-label="Stickers"
+          >
+            <Smile size={22} strokeWidth={1.6} color={stickerPickerOpen ? "#FF6B35" : "#1C1A17"} />
+          </button>
+          <button
+            onClick={() => {
+              setGifPickerOpen((o) => !o);
+              setStickerPickerOpen(false);
+            }}
+            className="flex-shrink-0 text-ink"
+            aria-label="GIFs"
+          >
+            <Clapperboard size={22} strokeWidth={1.6} color={gifPickerOpen ? "#FF6B35" : "#1C1A17"} />
+          </button>
+          <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple onChange={handleFiles} className="hidden" />
+          <input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && send()}
+            placeholder="Message..."
+            className="flex-1 border border-hairline rounded-full px-3.5 py-2.5 text-[13.5px] bg-white outline-none"
+          />
+          {text.trim() || pendingFiles.length > 0 ? (
+            <button
+              onClick={send}
+              disabled={uploading}
+              className="rounded-full w-[38px] h-[38px] flex items-center justify-center flex-shrink-0 text-white disabled:opacity-50"
+              style={{ background: "#FF6B35" }}
+            >
+              <SendHorizontal size={16} />
+            </button>
+          ) : (
+            <button
+              onClick={startRecording}
+              className="rounded-full w-[38px] h-[38px] flex items-center justify-center flex-shrink-0 text-white"
+              style={{ background: "#FF6B35" }}
+              aria-label="Record voice note"
+            >
+              <Mic size={16} />
+            </button>
+          )}
+        </div>
+      )}
+      <style jsx>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.3; }
+        }
+      `}</style>
     </div>
   );
 }
