@@ -1,19 +1,19 @@
 "use client";
 import { useState, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Heart, MessageCircle, Bookmark, Send } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import CommentsSheet from "@/components/CommentsSheet";
+import ShareSheet from "@/components/ShareSheet";
 
 export default function PostCard({ post, currentUserId }) {
   const supabase = createClient();
-  const router = useRouter();
   const [liked, setLiked] = useState(post.likedByMe);
   const [likeCount, setLikeCount] = useState(post.likeCount);
   const [saved, setSaved] = useState(post.savedByMe);
   const [comments, setComments] = useState(post.comments);
   const [commentsOpen, setCommentsOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [burst, setBurst] = useState(false);
   const lastTap = useRef(0);
 
@@ -58,26 +58,6 @@ export default function PostCard({ post, currentUserId }) {
     if (!error && data) setComments((c) => [...c, data]);
   };
 
-  const messageAuthor = async () => {
-    if (post.user_id === currentUserId) return;
-    const [a, b] = [currentUserId, post.user_id].sort();
-    let { data: convo } = await supabase
-      .from("conversations")
-      .select("id")
-      .eq("user_a", a)
-      .eq("user_b", b)
-      .maybeSingle();
-    if (!convo) {
-      const { data: created } = await supabase
-        .from("conversations")
-        .insert({ user_a: a, user_b: b })
-        .select("id")
-        .single();
-      convo = created;
-    }
-    if (convo) router.push(`/messages/${convo.id}`);
-  };
-
   return (
     <div className="border-b border-hairline pb-3.5">
       <Link href={`/profile/${post.profiles?.username}`} className="flex items-center gap-2.5 px-4 pt-3 pb-2.5">
@@ -112,7 +92,7 @@ export default function PostCard({ post, currentUserId }) {
           <button onClick={() => setCommentsOpen(true)} aria-label="Comment">
             <MessageCircle size={24} color="#1C1A17" strokeWidth={1.6} />
           </button>
-          <button onClick={messageAuthor} aria-label="Message" disabled={post.user_id === currentUserId}>
+          <button onClick={() => setShareOpen(true)} aria-label="Share">
             <Send size={22} color="#1C1A17" strokeWidth={1.6} />
           </button>
         </div>
@@ -133,12 +113,8 @@ export default function PostCard({ post, currentUserId }) {
         </button>
       )}
 
-      <CommentsSheet
-        open={commentsOpen}
-        onClose={() => setCommentsOpen(false)}
-        comments={comments}
-        onAddComment={addComment}
-      />
+      <CommentsSheet open={commentsOpen} onClose={() => setCommentsOpen(false)} comments={comments} onAddComment={addComment} />
+      <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} post={post} currentUserId={currentUserId} />
     </div>
   );
 }
