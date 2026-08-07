@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { ChevronLeft, SendHorizontal, ImagePlus, X, Smile, Clapperboard, CornerUpLeft, Pencil, Trash2, Heart } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -61,7 +62,7 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "messages", filter: `conversation_id=eq.${conversationId}` },
         (payload) => {
-          setMessages((prev) => prev.map((m) => (m.id === payload.new.id ? payload.new : m)));
+          setMessages((prev) => prev.map((m) => (m.id === payload.new.id ? { ...m, ...payload.new } : m)));
         }
       )
       .on("postgres_changes", { event: "*", schema: "public", table: "message_reactions" }, (payload) => {
@@ -214,7 +215,7 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
       .eq("id", editingId)
       .select()
       .single();
-    if (!error && data) setMessages((prev) => prev.map((m) => (m.id === data.id ? data : m)));
+    if (!error && data) setMessages((prev) => prev.map((m) => (m.id === data.id ? { ...m, ...data } : m)));
     setEditingId(null);
     setEditText("");
   };
@@ -228,7 +229,7 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
       .eq("id", id)
       .select()
       .single();
-    if (!error && data) setMessages((prev) => prev.map((m) => (m.id === data.id ? data : m)));
+    if (!error && data) setMessages((prev) => prev.map((m) => (m.id === data.id ? { ...m, ...data } : m)));
   };
 
   const toggleReaction = async (emoji) => {
@@ -283,6 +284,35 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
             return (
               <div key={m.id} className={`flex mb-2 ${isMe ? "justify-end" : "justify-start"}`}>
                 <div className="text-inksoft italic text-[12.5px] px-3.5 py-2 border border-hairline rounded-2xl">Message unsent</div>
+              </div>
+            );
+          }
+
+          if (m.shared_post_id) {
+            return (
+              <div key={m.id} className={`flex flex-col mb-2.5 ${isMe ? "items-end" : "items-start"}`}>
+                <Link
+                  href={m.posts?.profiles?.username ? `/profile/${m.posts.profiles.username}` : "/"}
+                  className="w-[200px] rounded-xl overflow-hidden border border-hairline bg-white block"
+                >
+                  <div className="aspect-square relative bg-paperdim">
+                    {m.posts ? (
+                      m.posts.media_type === "video" ? (
+                        <video src={m.posts.image_url} className="w-full h-full object-cover" />
+                      ) : (
+                        <img src={m.posts.image_url} alt="" className="w-full h-full object-cover" />
+                      )
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-inksoft text-[11px] font-mono">Post unavailable</div>
+                    )}
+                  </div>
+                  {m.posts && (
+                    <div className="px-2.5 py-2 text-[11px]">
+                      <div className="font-semibold">{m.posts.profiles?.username}</div>
+                      {m.posts.caption && <div className="text-inksoft truncate">{m.posts.caption}</div>}
+                    </div>
+                  )}
+                </Link>
               </div>
             );
           }
