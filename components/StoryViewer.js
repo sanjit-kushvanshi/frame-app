@@ -1,12 +1,13 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { X, Heart, SendHorizontal, Eye } from "lucide-react";
+import { X, Heart, SendHorizontal, Eye, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 const DURATION = 5000;
 
-export default function StoryViewer({ groups, startIndex, currentUserId, isOwnStory, onClose }) {
+export default function StoryViewer({ groups: initialGroups, startIndex, currentUserId, isOwnStory, onClose }) {
   const supabase = createClient();
+  const [groups, setGroups] = useState(initialGroups);
   const [groupIndex, setGroupIndex] = useState(startIndex);
   const [storyIndex, setStoryIndex] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -20,6 +21,8 @@ export default function StoryViewer({ groups, startIndex, currentUserId, isOwnSt
   const [viewersOpen, setViewersOpen] = useState(false);
   const [viewersList, setViewersList] = useState([]);
   const [viewersLoading, setViewersLoading] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const intervalRef = useRef(null);
   const viewedRef = useRef(new Set());
 
@@ -34,6 +37,7 @@ export default function StoryViewer({ groups, startIndex, currentUserId, isOwnSt
     setReplyText("");
     setSent(false);
     setViewersOpen(false);
+    setConfirmingDelete(false);
 
     if (currentUserId && !viewedRef.current.has(story.id)) {
       viewedRef.current.add(story.id);
@@ -152,6 +156,32 @@ export default function StoryViewer({ groups, startIndex, currentUserId, isOwnSt
     }
   };
 
+  const deleteStory = async () => {
+    if (!story) return;
+    setDeleting(true);
+    const { error } = await supabase.from("stories").delete().eq("id", story.id).eq("user_id", currentUserId);
+    setDeleting(false);
+    if (error) {
+      alert("Couldn't delete: " + error.message);
+      return;
+    }
+
+    const currentGroup = groups[groupIndex];
+    const remainingStories = currentGroup.stories.filter((s) => s.id !== story.id);
+
+    if (remainingStories.length === 0) {
+      onClose();
+      return;
+    }
+
+    const updatedGroups = groups.map((g, i) => (i === groupIndex ? { ...g, stories: remainingStories } : g));
+    setGroups(updatedGroups);
+    setConfirmingDelete(false);
+    if (storyIndex >= remainingStories.length) {
+      setStoryIndex(remainingStories.length - 1);
+    }
+  };
+
   if (!group || !story) return null;
 
   return (
@@ -170,9 +200,16 @@ export default function StoryViewer({ groups, startIndex, currentUserId, isOwnSt
             <img src={group.avatar_url || `https://picsum.photos/seed/${group.username}/200/200`} alt="" className="w-8 h-8 rounded-full object-cover border border-white/40" />
             <span className="text-white text-[13px] font-semibold">{group.username}</span>
           </div>
-          <button onClick={onClose} className="text-white p-1">
-            <X size={22} />
-          </button>
+          <div className="flex items-center gap-2">
+            {isOwnStory && (
+              <button onClick={() => { setConfirmingDelete(true); setPaused(true); }} className="text-white p-1" aria-label="Delete story">
+                <Trash2 size={20} />
+              </button>
+            )}
+            <button onClick={onClose} className="text-white p-1">
+              <X size={22} />
+            </button>
+          </div>
         </div>
 
         {story.media_type === "video" ? (
@@ -181,7 +218,7 @@ export default function StoryViewer({ groups, startIndex, currentUserId, isOwnSt
           <img src={story.media_url} alt="" className="w-full h-full object-contain" />
         )}
 
-        {!viewersOpen && (
+        {!viewersOpen && !confirmingDelete && (
           <div className="absolute inset-0 flex" style={{ bottom: 70 }}>
             <button onClick={goPrev} className="w-1/3 h-full" aria-label="Previous" />
             <div className="w-1/3 h-full" />
@@ -250,6 +287,26 @@ export default function StoryViewer({ groups, startIndex, currentUserId, isOwnSt
                       {v.liked && <Heart size={16} fill="#FF6B35" color="#FF6B35" />}
                     </div>
                   ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {confirmingDelete && (
+          <div className="absolute inset-0 bg-black/60 z-30 flex items-center justify-center p-6" onClick={() => { setConfirmingDelete(false); setPaused(false); }}>
+            <div onClick={(e) => e.stopPropagation()} className="bg-paper rounded-2xl p-5 w-full max-w-[300px]">
+              <div className="font-semibold text-[15px] mb-1">Delete this story?</div>
+              <div className="text-inksoft text-[13px] mb-4">This can't be undone.</div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setConfirmingDelete(false); setPaused(false); }}
+                  className="flex-1 border border-hairline rounded-lg py-2.5 text-[13px] font-semibold"
+                >
+                  Cancel
+                </button>
+                <button onClick={deleteStory} disabled={deleting} className="flex-1 bg-amber text-white rounded-lg py-2.5 text-[13px] font-semibold disabled:opacity-50">
+                  {deleting ? "Deleting..." : "Delete"}
+                </button>
               </div>
             </div>
           </div>
