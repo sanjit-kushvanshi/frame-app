@@ -17,6 +17,7 @@ export default async function ActivityPage() {
   const labelFor = (n) => {
     if (n.type === "follow") return "started following you";
     if (n.type === "like") return "liked your frame";
+    if (n.type === "story_like") return "liked your story";
     if (n.type === "comment") return `left a note: "${n.excerpt}"`;
     if (n.type === "mention") return `mentioned you: "${n.excerpt}"`;
     return "";
@@ -31,7 +32,7 @@ export default async function ActivityPage() {
       {(notifications || []).map((n) => (
         <Link
           key={n.id}
-          href={n.type === "follow" ? `/profile/${n.profiles?.username}` : "/"}
+          href={n.type === "follow" || n.type === "story_like" ? `/profile/${n.profiles?.username}` : "/"}
           className={`flex items-center gap-2.5 py-2.5 ${!n.read ? "font-semibold" : ""}`}
         >
           <img
