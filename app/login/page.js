@@ -27,7 +27,7 @@ function InstallBanner() {
   return (
     <div className="w-full border-b border-hairline bg-paperdim px-4 py-2.5 flex items-center gap-3">
       <p className="flex-1 font-mono text-[11px] leading-snug text-inksoft">
-        Install Frame to your home screen: tap the browser menu (⋮) and select <span className="text-ink font-semibold">&ldquo;Add to Home Screen&rdquo;</span>.
+        Install Frame to your home screen: tap the browser menu (⋮) and select <span className="text-ink font-semibold">&ldquo;Add to Home Screen or Install and create shortcut&rdquo;</span>.
       </p>
       <button onClick={dismiss} aria-label="Dismiss" className="flex-shrink-0 text-inksoft p-1">
         <X size={14} strokeWidth={1.8} />
