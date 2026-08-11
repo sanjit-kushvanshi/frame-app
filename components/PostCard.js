@@ -17,6 +17,8 @@ export default function PostCard({ post, currentUserId }) {
   const [burst, setBurst] = useState(false);
   const lastTap = useRef(0);
 
+  const isVideo = post.media_type === "video";
+
   const toggleLike = async () => {
     if (liked) {
       setLiked(false);
@@ -73,7 +75,11 @@ export default function PostCard({ post, currentUserId }) {
       </Link>
 
       <div className="relative" onClick={handleImgTap}>
-        <img src={post.image_url} alt={post.caption} className="w-full block aspect-square object-cover" draggable={false} />
+        {isVideo ? (
+          <video src={post.image_url} controls playsInline className="w-full block aspect-square object-cover" onClick={(e) => e.stopPropagation()} />
+        ) : (
+          <img src={post.image_url} alt={post.caption} className="w-full block aspect-square object-cover" draggable={false} />
+        )}
         <div className="absolute top-2.5 left-2.5 font-mono text-[11px] text-white bg-[rgba(28,26,23,0.55)] px-[7px] py-[3px] rounded backdrop-blur-sm">
           No.{String(post.frame_no).padStart(3, "0")}
         </div>
