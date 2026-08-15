@@ -1,9 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Clapperboard } from "lucide-react";
 import FollowButton from "@/components/FollowButton";
 import MessageButton from "@/components/MessageButton";
+import ProfileTabs from "@/components/ProfileTabs";
 
 export default async function ProfilePage({ params }) {
   const supabase = createClient();
@@ -70,37 +70,7 @@ export default async function ProfilePage({ params }) {
         )}
       </div>
 
-      {totalFrames === 0 ? (
-        <div className="px-4 py-10 text-center text-inksoft text-sm">No frames developed yet.</div>
-      ) : (
-        <>
-          {(posts || []).length > 0 && (
-            <div className="grid grid-cols-3 gap-0.5 p-0.5">
-              {posts.map((p) => (
-                <Link key={p.id} href={`/post/${p.id}`} className="aspect-square overflow-hidden block">
-                  <img src={p.image_url} alt="" className="w-full h-full object-cover block" />
-                </Link>
-              ))}
-            </div>
-          )}
-
-          {(reels || []).length > 0 && (
-            <>
-              <div className="flex items-center gap-1.5 px-4 pt-4 pb-1.5 font-mono text-[11px] text-inksoft uppercase tracking-wide">
-                <Clapperboard size={13} /> Reels
-              </div>
-              <div className="grid grid-cols-3 gap-0.5 p-0.5">
-                {reels.map((p) => (
-                  <Link key={p.id} href={`/post/${p.id}`} className="aspect-square overflow-hidden block relative bg-ink">
-                    <video src={p.image_url} className="w-full h-full object-cover block" />
-                    <Clapperboard size={14} className="absolute top-1.5 right-1.5 text-white" style={{ filter: "drop-shadow(0 0 2px rgba(0,0,0,0.6))" }} />
-                  </Link>
-                ))}
-              </div>
-            </>
-          )}
-        </>
-      )}
+      <ProfileTabs posts={posts || []} reels={reels || []} />
     </div>
   );
 }
