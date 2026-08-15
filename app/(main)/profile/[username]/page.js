@@ -19,7 +19,7 @@ export default async function ProfilePage({ params }) {
   const isMe = profile.id === user.id;
 
   const [{ data: posts }, { count: followerCount }, { count: followingCount }, { data: iFollow }] = await Promise.all([
-    supabase.from("posts").select("id, image_url").eq("user_id", profile.id).order("created_at", { ascending: false }),
+    supabase.from("posts").select("id, image_url").eq("user_id", profile.id).eq("is_reel", false).order("created_at", { ascending: false }),
     supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", profile.id),
     supabase.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", profile.id),
     isMe ? { data: null } : supabase.from("follows").select("follower_id").eq("follower_id", user.id).eq("following_id", profile.id).maybeSingle(),
@@ -38,14 +38,14 @@ export default async function ProfilePage({ params }) {
             <div className="text-base font-semibold">{(posts || []).length}</div>
             <div className="text-[10.5px] text-inksoft">frames</div>
           </div>
-          <div className="text-center">
+          <Link href={`/profile/${profile.username}/followers`} className="text-center">
             <div className="text-base font-semibold">{followerCount || 0}</div>
             <div className="text-[10.5px] text-inksoft">followers</div>
-          </div>
-          <div className="text-center">
+          </Link>
+          <Link href={`/profile/${profile.username}/following`} className="text-center">
             <div className="text-base font-semibold">{followingCount || 0}</div>
             <div className="text-[10.5px] text-inksoft">following</div>
-          </div>
+          </Link>
         </div>
       </div>
 
