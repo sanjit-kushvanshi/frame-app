@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { compressImage } from "@/lib/mediaCompress";
 
 export default function SettingsPage() {
   const supabase = createClient();
@@ -12,6 +13,7 @@ export default function SettingsPage() {
   const [bio, setBio] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -31,15 +33,19 @@ export default function SettingsPage() {
     const file = e.target.files?.[0];
     if (!file || !userId) return;
     setError("");
-    const ext = file.name.split(".").pop();
-    const path = `${userId}/${Date.now()}.${ext}`;
-    const { error: upErr } = await supabase.storage.from("avatars").upload(path, file);
-    if (upErr) {
-      setError(upErr.message);
-      return;
+    setUploadingAvatar(true);
+    try {
+      const compressed = await compressImage(file, { maxDim: 500, targetBytes: 150 * 1024 });
+      const path = `${userId}/${Date.now()}.jpg`;
+      const { error: upErr } = await supabase.storage.from("avatars").upload(path, compressed);
+      if (upErr) throw upErr;
+      const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+      setAvatarUrl(data.publicUrl);
+    } catch (err) {
+      setError(err.message || "Couldn't upload that photo.");
+    } finally {
+      setUploadingAvatar(false);
     }
-    const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-    setAvatarUrl(data.publicUrl);
   };
 
   const handleUsernameChange = (e) => {
@@ -80,8 +86,8 @@ export default function SettingsPage() {
           alt=""
           className="w-20 h-20 rounded-full object-cover"
         />
-        <button onClick={() => fileInputRef.current?.click()} className="text-amber text-sm font-semibold">
-          Change photo
+        <button onClick={() => fileInputRef.current?.click()} className="text-amber text-sm font-semibold" disabled={uploadingAvatar}>
+          {uploadingAvatar ? "Uploading..." : "Change photo"}
         </button>
         <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarFile} className="hidden" />
       </div>
