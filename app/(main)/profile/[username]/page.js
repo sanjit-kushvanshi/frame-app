@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { Clapperboard } from "lucide-react";
 import FollowButton from "@/components/FollowButton";
 import MessageButton from "@/components/MessageButton";
 
@@ -18,12 +19,15 @@ export default async function ProfilePage({ params }) {
 
   const isMe = profile.id === user.id;
 
-  const [{ data: posts }, { count: followerCount }, { count: followingCount }, { data: iFollow }] = await Promise.all([
+  const [{ data: posts }, { data: reels }, { count: followerCount }, { count: followingCount }, { data: iFollow }] = await Promise.all([
     supabase.from("posts").select("id, image_url").eq("user_id", profile.id).eq("is_reel", false).order("created_at", { ascending: false }),
+    supabase.from("posts").select("id, image_url").eq("user_id", profile.id).eq("is_reel", true).order("created_at", { ascending: false }),
     supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", profile.id),
     supabase.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", profile.id),
     isMe ? { data: null } : supabase.from("follows").select("follower_id").eq("follower_id", user.id).eq("following_id", profile.id).maybeSingle(),
   ]);
+
+  const totalFrames = (posts || []).length + (reels || []).length;
 
   return (
     <div>
@@ -35,7 +39,7 @@ export default async function ProfilePage({ params }) {
         />
         <div className="flex gap-5 font-mono">
           <div className="text-center">
-            <div className="text-base font-semibold">{(posts || []).length}</div>
+            <div className="text-base font-semibold">{totalFrames}</div>
             <div className="text-[10.5px] text-inksoft">frames</div>
           </div>
           <Link href={`/profile/${profile.username}/followers`} className="text-center">
@@ -66,16 +70,36 @@ export default async function ProfilePage({ params }) {
         )}
       </div>
 
-      {(posts || []).length === 0 ? (
+      {totalFrames === 0 ? (
         <div className="px-4 py-10 text-center text-inksoft text-sm">No frames developed yet.</div>
       ) : (
-        <div className="grid grid-cols-3 gap-0.5 p-0.5">
-          {posts.map((p) => (
-            <div key={p.id} className="aspect-square overflow-hidden">
-              <img src={p.image_url} alt="" className="w-full h-full object-cover block" />
+        <>
+          {(posts || []).length > 0 && (
+            <div className="grid grid-cols-3 gap-0.5 p-0.5">
+              {posts.map((p) => (
+                <Link key={p.id} href={`/post/${p.id}`} className="aspect-square overflow-hidden block">
+                  <img src={p.image_url} alt="" className="w-full h-full object-cover block" />
+                </Link>
+              ))}
             </div>
-          ))}
-        </div>
+          )}
+
+          {(reels || []).length > 0 && (
+            <>
+              <div className="flex items-center gap-1.5 px-4 pt-4 pb-1.5 font-mono text-[11px] text-inksoft uppercase tracking-wide">
+                <Clapperboard size={13} /> Reels
+              </div>
+              <div className="grid grid-cols-3 gap-0.5 p-0.5">
+                {reels.map((p) => (
+                  <Link key={p.id} href={`/post/${p.id}`} className="aspect-square overflow-hidden block relative bg-ink">
+                    <video src={p.image_url} className="w-full h-full object-cover block" />
+                    <Clapperboard size={14} className="absolute top-1.5 right-1.5 text-white" style={{ filter: "drop-shadow(0 0 2px rgba(0,0,0,0.6))" }} />
+                  </Link>
+                ))}
+              </div>
+            </>
+          )}
+        </>
       )}
     </div>
   );
