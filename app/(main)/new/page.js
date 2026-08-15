@@ -3,6 +3,7 @@ import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { X, Upload } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { compressForUpload } from "@/lib/mediaCompress";
 
 export default function NewPostPage() {
   const supabase = createClient();
@@ -16,8 +17,9 @@ export default function NewPostPage() {
   const [location, setLocation] = useState("");
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  const [processing, setProcessing] = useState(false);
 
-  const handleFile = (e) => {
+  const handleFile = async (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
     const isImage = f.type.startsWith("image/");
@@ -27,10 +29,18 @@ export default function NewPostPage() {
       return;
     }
     setError("");
-    setFile(f);
-    setFileType(isVideo ? "video" : "image");
-    setPostAsReel(isVideo);
-    setPreview(URL.createObjectURL(f));
+    setProcessing(true);
+    try {
+      const compressed = await compressForUpload(f);
+      setFile(compressed);
+      setFileType(isVideo ? "video" : "image");
+      setPostAsReel(isVideo);
+      setPreview(URL.createObjectURL(compressed));
+    } catch (err) {
+      setError(err.message || "Couldn't process that file.");
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const handlePublish = async () => {
@@ -73,9 +83,9 @@ export default function NewPostPage() {
         <div className="font-display italic text-[17px]">{postAsReel ? "New reel" : "New frame"}</div>
         <button
           onClick={handlePublish}
-          disabled={!file || uploading}
+          disabled={!file || uploading || processing}
           className="text-sm font-semibold"
-          style={{ color: !file || uploading ? "#DCD6C8" : "#FF6B35" }}
+          style={{ color: !file || uploading || processing ? "#DCD6C8" : "#FF6B35" }}
         >
           {uploading ? "Publishing..." : "Share"}
         </button>
@@ -86,7 +96,9 @@ export default function NewPostPage() {
           onClick={() => fileInputRef.current?.click()}
           className="w-full aspect-square rounded bg-paperdim flex items-center justify-center overflow-hidden cursor-pointer"
         >
-          {preview ? (
+          {processing ? (
+            <span className="font-mono text-xs text-inksoft">compressing...</span>
+          ) : preview ? (
             fileType === "video" ? (
               <video src={preview} controls className="w-full h-full object-cover" />
             ) : (
