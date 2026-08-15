@@ -3,9 +3,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { Grid3x3, Clapperboard } from "lucide-react";
 
-export default function ProfileTabs({ posts, reels }) {
+export default function ProfileTabs({ allItems, reels }) {
   const [tab, setTab] = useState("posts");
-  const active = tab === "posts" ? posts : reels;
+  const active = tab === "posts" ? allItems : reels;
 
   return (
     <div>
@@ -34,7 +34,7 @@ export default function ProfileTabs({ posts, reels }) {
         <div className="grid grid-cols-3 gap-0.5 p-0.5">
           {active.map((p) => (
             <Link key={p.id} href={`/post/${p.id}`} className="aspect-square overflow-hidden block relative bg-ink">
-              {tab === "reels" ? (
+              {p.is_reel ? (
                 <>
                   <video src={p.image_url} className="w-full h-full object-cover block" />
                   <Clapperboard size={14} className="absolute top-1.5 right-1.5 text-white" style={{ filter: "drop-shadow(0 0 2px rgba(0,0,0,0.6))" }} />
