@@ -3,6 +3,7 @@ import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { PlusSquare } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { compressImage, checkVideoSize } from "@/lib/mediaCompress";
 import StoryViewer from "@/components/StoryViewer";
 
 export default function StoriesRow({ myUsername, myAvatar, myStories, groups, currentUserId }) {
@@ -17,13 +18,22 @@ export default function StoriesRow({ myUsername, myAvatar, myStories, groups, cu
     if (!file) return;
     setUploading(true);
     try {
+      const isVideo = file.type.startsWith("video/");
+      let uploadFile = file;
+      if (isVideo) {
+        const check = checkVideoSize(file);
+        if (!check.ok) throw new Error(check.message);
+      } else {
+        uploadFile = await compressImage(file, { maxDim: 1080, targetBytes: 200 * 1024 });
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
-      const ext = file.name.split(".").pop();
+      const ext = isVideo ? file.name.split(".").pop() : "jpg";
       const path = `${user.id}/${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage.from("stories").upload(path, file);
+      const { error: uploadError } = await supabase.storage.from("stories").upload(path, uploadFile);
       if (uploadError) throw uploadError;
       const { data: pub } = supabase.storage.from("stories").getPublicUrl(path);
-      const media_type = file.type.startsWith("video/") ? "video" : "image";
+      const media_type = isVideo ? "video" : "image";
       await supabase.from("stories").insert({ user_id: user.id, media_url: pub.publicUrl, media_type });
       router.refresh();
     } catch (err) {
@@ -82,6 +92,10 @@ export default function StoriesRow({ myUsername, myAvatar, myStories, groups, cu
           </span>
         </div>
       ))}
+
+      {(!groups || groups.length === 0) && !myStories?.length && (
+        <span className="text-xs font-mono text-inksoft py-4">No one else here yet — invite someone.</span>
+      )}
 
       {viewerIndex !== null && (
         <StoryViewer
