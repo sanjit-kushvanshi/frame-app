@@ -19,15 +19,15 @@ export default async function ProfilePage({ params }) {
 
   const isMe = profile.id === user.id;
 
-  const [{ data: posts }, { data: reels }, { count: followerCount }, { count: followingCount }, { data: iFollow }] = await Promise.all([
-    supabase.from("posts").select("id, image_url").eq("user_id", profile.id).eq("is_reel", false).order("created_at", { ascending: false }),
-    supabase.from("posts").select("id, image_url").eq("user_id", profile.id).eq("is_reel", true).order("created_at", { ascending: false }),
+  const [{ data: allItems }, { count: followerCount }, { count: followingCount }, { data: iFollow }] = await Promise.all([
+    supabase.from("posts").select("id, image_url, is_reel").eq("user_id", profile.id).order("created_at", { ascending: false }),
     supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", profile.id),
     supabase.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", profile.id),
     isMe ? { data: null } : supabase.from("follows").select("follower_id").eq("follower_id", user.id).eq("following_id", profile.id).maybeSingle(),
   ]);
 
-  const totalFrames = (posts || []).length + (reels || []).length;
+  const reels = (allItems || []).filter((p) => p.is_reel);
+  const totalFrames = (allItems || []).length;
 
   return (
     <div>
@@ -70,7 +70,7 @@ export default async function ProfilePage({ params }) {
         )}
       </div>
 
-      <ProfileTabs posts={posts || []} reels={reels || []} />
+      <ProfileTabs allItems={allItems || []} reels={reels} />
     </div>
   );
 }
