@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, SendHorizontal, ImagePlus, X, Smile, Clapperboard, CornerUpLeft, Pencil, Trash2, Heart, Mic, Square, Play, Pause } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { compressImage, checkVideoSize } from "@/lib/mediaCompress";
 
 const STICKERS = ["❤️", "🔥", "😂", "😍", "👍", "🎉", "😭", "👀", "💀", "✨", "🙏", "😮"];
 const REACTION_EMOJIS = ["❤️", "😂", "😮", "😢", "👍", "🔥"];
@@ -187,15 +187,29 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
     };
   }, [gifQuery, gifPickerOpen]);
 
-  const handleFiles = (e) => {
+  const handleFiles = async (e) => {
     const files = Array.from(e.target.files || []);
     const valid = files.filter((f) => f.type.startsWith("image/") || f.type.startsWith("video/"));
-    const withPreviews = valid.map((file) => ({
-      file,
-      url: URL.createObjectURL(file),
-      type: file.type.startsWith("image/") ? "image" : "video",
-    }));
-    setPendingFiles((prev) => [...prev, ...withPreviews]);
+    const processed = [];
+    for (const file of valid) {
+      const isVideo = file.type.startsWith("video/");
+      if (isVideo) {
+        const check = checkVideoSize(file);
+        if (!check.ok) {
+          alert(check.message);
+          continue;
+        }
+        processed.push({ file, url: URL.createObjectURL(file), type: "video" });
+      } else {
+        try {
+          const compressed = await compressImage(file, { maxDim: 1080, targetBytes: 200 * 1024 });
+          processed.push({ file: compressed, url: URL.createObjectURL(compressed), type: "image" });
+        } catch (err) {
+          alert("Couldn't process an image: " + err.message);
+        }
+      }
+    }
+    setPendingFiles((prev) => [...prev, ...processed]);
     e.target.value = "";
   };
 
