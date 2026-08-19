@@ -70,7 +70,7 @@ export default async function ProfilePage({ params }) {
         )}
       </div>
 
-      <ProfileTabs allItems={allItems || []} reels={reels} />
+      <ProfileTabs allItems={allItems || []} reels={reels} isMe={isMe} profileUserId={profile.id} />
     </div>
   );
 }
