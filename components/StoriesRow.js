@@ -93,8 +93,7 @@ export default function StoriesRow({ myUsername, myAvatar, myStories, groups, cu
         </div>
       ))}
 
-      {(!groups || groups.length === 0) && !myStories?.length && (
-        <span className="text-xs font-mono text-inksoft py-4">No one else here yet — invite someone.</span>
+      {(!groups || groups.length === 0) && !myStories?.length && (  
       )}
 
       {viewerIndex !== null && (
