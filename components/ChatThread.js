@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, SendHorizontal, ImagePlus, X, Smile, Clapperboard, CornerUpLeft, Pencil, Trash2, Heart, Mic, Square, Play, Pause } from "lucide-react";
 import { compressImage, checkVideoSize } from "@/lib/mediaCompress";
+import { createClient } from "@/lib/supabase/client";
 
 const STICKERS = ["❤️", "🔥", "😂", "😍", "👍", "🎉", "😭", "👀", "💀", "✨", "🙏", "😮"];
 const REACTION_EMOJIS = ["❤️", "😂", "😮", "😢", "👍", "🔥"];
