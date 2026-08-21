@@ -43,13 +43,23 @@ export default function ReelCard({ post, currentUserId, isActive, onDeleted }) {
     }
   };
 
-  const addComment = async (text) => {
+  const addComment = async (text, parentId) => {
     const { data, error } = await supabase
       .from("comments")
-      .insert({ post_id: post.id, user_id: currentUserId, text })
-      .select("id, text, user_id, profiles(username)")
+      .insert({ post_id: post.id, user_id: currentUserId, text, parent_id: parentId || null })
+      .select("id, text, user_id, parent_id, profiles(username)")
       .single();
     if (!error && data) setComments((c) => [...c, data]);
+  };
+
+  const deleteComment = async (id) => {
+    const { error } = await supabase.from("comments").delete().eq("id", id).eq("user_id", currentUserId);
+    if (!error) {
+      setComments((c) => c.filter((cm) => cm.id !== id && cm.parent_id !== id));
+    } else {
+      console.error("Delete comment failed:", error.message);
+    }
+    return { error };
   };
 
   const deleteReel = async () => {
@@ -114,7 +124,14 @@ export default function ReelCard({ post, currentUserId, isActive, onDeleted }) {
         </div>
       </div>
 
-      <CommentsSheet open={commentsOpen} onClose={() => setCommentsOpen(false)} comments={comments} onAddComment={addComment} />
+      <CommentsSheet
+        open={commentsOpen}
+        onClose={() => setCommentsOpen(false)}
+        comments={comments}
+        onAddComment={addComment}
+        onDeleteComment={deleteComment}
+        currentUserId={currentUserId}
+      />
       <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} post={post} currentUserId={currentUserId} />
 
       {confirmingDelete && (
