@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { X, Heart, SendHorizontal, Eye, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
-const DURATION = 5000;
+const IMAGE_DURATION = 5000;
 
 export default function StoryViewer({ groups: initialGroups, startIndex, currentUserId, isOwnStory, onClose }) {
   const supabase = createClient();
@@ -25,9 +25,11 @@ export default function StoryViewer({ groups: initialGroups, startIndex, current
   const [deleting, setDeleting] = useState(false);
   const intervalRef = useRef(null);
   const viewedRef = useRef(new Set());
+  const videoRef = useRef(null);
 
   const group = groups?.[groupIndex];
   const story = group?.stories?.[storyIndex];
+  const isVideo = story?.media_type === "video";
 
   useEffect(() => {
     if (!story) return;
@@ -53,12 +55,13 @@ export default function StoryViewer({ groups: initialGroups, startIndex, current
     }
   }, [groupIndex, storyIndex, story?.id]);
 
+  // Progress/advance timer for IMAGE stories only.
   useEffect(() => {
-    if (!story || paused) return;
-    const start = Date.now() - (progress / 100) * DURATION;
+    if (!story || isVideo || paused) return;
+    const start = Date.now() - (progress / 100) * IMAGE_DURATION;
     intervalRef.current = setInterval(() => {
       const elapsed = Date.now() - start;
-      const pct = Math.min(100, (elapsed / DURATION) * 100);
+      const pct = Math.min(100, (elapsed / IMAGE_DURATION) * 100);
       setProgress(pct);
       if (pct >= 100) {
         clearInterval(intervalRef.current);
@@ -67,7 +70,24 @@ export default function StoryViewer({ groups: initialGroups, startIndex, current
     }, 50);
     return () => clearInterval(intervalRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groupIndex, storyIndex, paused]);
+  }, [groupIndex, storyIndex, paused, isVideo]);
+
+  // Play/pause the actual <video> element in sync with `paused`.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v || !isVideo) return;
+    if (paused) {
+      v.pause();
+    } else {
+      v.play().catch(() => {});
+    }
+  }, [paused, isVideo, groupIndex, storyIndex]);
+
+  const handleVideoTimeUpdate = (e) => {
+    const v = e.currentTarget;
+    if (!v.duration) return;
+    setProgress((v.currentTime / v.duration) * 100);
+  };
 
   const goNext = () => {
     if (!group) return;
@@ -212,8 +232,16 @@ export default function StoryViewer({ groups: initialGroups, startIndex, current
           </div>
         </div>
 
-        {story.media_type === "video" ? (
-          <video src={story.media_url} autoPlay muted playsInline className="w-full h-full object-contain" />
+        {isVideo ? (
+          <video
+            ref={videoRef}
+            src={story.media_url}
+            autoPlay
+            playsInline
+            onTimeUpdate={handleVideoTimeUpdate}
+            onEnded={goNext}
+            className="w-full h-full object-contain"
+          />
         ) : (
           <img src={story.media_url} alt="" className="w-full h-full object-contain" />
         )}
