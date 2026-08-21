@@ -1,40 +1,72 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { X, CornerUpLeft, Trash2 } from "lucide-react";
+
+function renderTextWithMentions(text) {
+  const parts = text.split(/(@[a-zA-Z0-9_.]+)/g);
+  return parts.map((part, i) =>
+    part.startsWith("@") ? (
+      <span key={i} className="font-semibold" style={{ color: "#FF6B35" }}>
+        {part}
+      </span>
+    ) : (
+      <span key={i}>{part}</span>
+    )
+  );
+}
 
 export default function CommentsSheet({ open, onClose, comments, onAddComment, onDeleteComment, currentUserId }) {
   const [text, setText] = useState("");
   const [replyingTo, setReplyingTo] = useState(null); // { id, username }
+  const [deleteError, setDeleteError] = useState("");
+  const inputRef = useRef(null);
 
   if (!open) return null;
 
   const topLevel = comments.filter((c) => !c.parent_id);
   const repliesFor = (parentId) => comments.filter((c) => c.parent_id === parentId);
 
-  const submit = () => {
+  const startReply = (parentId, username) => {
+    setReplyingTo({ id: parentId, username });
+    setText(`@${username} `);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
+
+  const cancelReply = () => {
+    setReplyingTo(null);
+    setText("");
+  };
+
+  const submit = async () => {
     if (!text.trim()) return;
-    onAddComment(text.trim(), replyingTo?.id || null);
+    await onAddComment(text.trim(), replyingTo?.id || null);
     setText("");
     setReplyingTo(null);
+  };
+
+  const handleDelete = async (id) => {
+    setDeleteError("");
+    const result = await onDeleteComment(id);
+    if (result?.error) setDeleteError("Couldn't delete that note. Try again.");
   };
 
   const renderComment = (c, isReply) => (
     <div key={c.id} className={`py-2 text-[13.5px] ${isReply ? "ml-7 border-l border-hairline pl-3" : ""}`}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1">
-          <span className="font-semibold">{c.profiles?.username}</span> {c.text}
+          <span className="font-semibold">{c.profiles?.username}</span> {renderTextWithMentions(c.text)}
         </div>
       </div>
       <div className="flex items-center gap-3 mt-1">
         <button
-          onClick={() => setReplyingTo({ id: isReply ? c.parent_id : c.id, username: c.profiles?.username })}
+          onClick={() => startReply(isReply ? c.parent_id : c.id, c.profiles?.username)}
           className="flex items-center gap-1 text-[11px] text-inksoft font-mono"
         >
           <CornerUpLeft size={11} /> Reply
         </button>
         {c.user_id === currentUserId && (
           <button
-            onClick={() => onDeleteComment(c.id)}
+            onClick={() => handleDelete(c.id)}
             className="flex items-center gap-1 text-[11px] text-amber font-mono"
           >
             <Trash2 size={11} /> Delete
@@ -54,6 +86,9 @@ export default function CommentsSheet({ open, onClose, comments, onAddComment, o
           <span className="font-semibold text-sm">Notes</span>
           <button onClick={onClose}><X size={20} /></button>
         </div>
+        {deleteError && (
+          <div className="px-4 py-1.5 text-[11px] font-mono text-amber bg-paperdim">{deleteError}</div>
+        )}
         <div className="overflow-y-auto px-4 py-2 flex-1">
           {topLevel.length === 0 && (
             <div className="text-inksoft text-sm py-6 text-center">No notes yet. Say something about this frame.</div>
@@ -68,15 +103,16 @@ export default function CommentsSheet({ open, onClose, comments, onAddComment, o
         {replyingTo && (
           <div className="flex items-center justify-between px-4 py-1.5 border-t border-hairline bg-paperdim">
             <span className="text-[11px] font-mono text-inksoft">Replying to @{replyingTo.username}</span>
-            <button onClick={() => setReplyingTo(null)}><X size={13} /></button>
+            <button onClick={cancelReply}><X size={13} /></button>
           </div>
         )}
         <div className="flex gap-2 p-3 border-t border-hairline">
           <input
+            ref={inputRef}
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && submit()}
-            placeholder={replyingTo ? `Reply to @${replyingTo.username}...` : "Add a note..."}
+            placeholder="Add a note..."
             className="flex-1 border border-hairline rounded-full px-3.5 py-2.5 text-[13px] bg-white outline-none"
           />
           <button
