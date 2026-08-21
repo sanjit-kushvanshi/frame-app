@@ -65,7 +65,10 @@ export default function PostCard({ post, currentUserId }) {
     if (!error) {
       // remove the comment and any replies under it (mirrors the DB's ON DELETE CASCADE)
       setComments((c) => c.filter((cm) => cm.id !== id && cm.parent_id !== id));
+    } else {
+      console.error("Delete comment failed:", error.message);
     }
+    return { error };
   };
 
   return (
