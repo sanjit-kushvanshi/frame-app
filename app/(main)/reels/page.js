@@ -17,7 +17,7 @@ export default async function ReelsPage() {
   const [{ data: likes }, { data: comments }] = await Promise.all([
     postIds.length ? supabase.from("likes").select("post_id, user_id").in("post_id", postIds) : { data: [] },
     postIds.length
-      ? supabase.from("comments").select("id, post_id, text, user_id, profiles(username)").in("post_id", postIds)
+      ? supabase.from("comments").select("id, post_id, text, user_id, parent_id, profiles(username)").in("post_id", postIds)
       : { data: [] },
   ]);
 
