@@ -101,6 +101,11 @@ export default function StoryViewer({ groups: initialGroups, startIndex, current
     }
   };
 
+  const goNextRef = useRef(goNext);
+  useEffect(() => {
+    goNextRef.current = goNext;
+  });
+
   const goPrev = () => {
     if (storyIndex > 0) {
       setStoryIndex((i) => i - 1);
