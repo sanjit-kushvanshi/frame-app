@@ -75,7 +75,16 @@ function VoiceMessage({ url, isMe }) {
   );
 }
 
-export default function ChatThread({ conversationId, currentUserId, other, initialMessages, initialReactions }) {
+export default function ChatThread({
+  conversationId,
+  currentUserId,
+  other,
+  isGroup = false,
+  groupName,
+  participants,
+  initialMessages,
+  initialReactions,
+}) {
   const supabase = createClient();
   const router = useRouter();
   const [messages, setMessages] = useState(initialMessages);
@@ -104,6 +113,15 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
   const recordTimerRef = useRef(null);
   const mediaStreamRef = useRef(null);
 
+  const otherParticipants = isGroup ? (participants || []).filter((p) => p.id !== currentUserId) : [];
+  const profileById = (id) => {
+    if (isGroup) return (participants || []).find((p) => p.id === id);
+    return id === currentUserId ? null : other;
+  };
+  const headerTitle = isGroup
+    ? groupName || otherParticipants.map((p) => p.username).join(", ")
+    : other?.username;
+
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
@@ -114,12 +132,20 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
 
   useEffect(() => {
     (async () => {
+      if (isGroup) {
+        await supabase
+          .from("conversation_participants")
+          .update({ last_read_at: new Date().toISOString() })
+          .eq("conversation_id", conversationId)
+          .eq("user_id", currentUserId);
+        return;
+      }
       const { data: convo } = await supabase.from("conversations").select("user_a, user_b").eq("id", conversationId).single();
       if (!convo) return;
       const field = convo.user_a === currentUserId ? "last_read_a" : "last_read_b";
       await supabase.from("conversations").update({ [field]: new Date().toISOString() }).eq("id", conversationId);
     })();
-  }, [conversationId, currentUserId, supabase]);
+  }, [conversationId, currentUserId, supabase, isGroup]);
 
   useEffect(() => {
     const channel = supabase
@@ -440,20 +466,42 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
     <div className="flex flex-col h-screen">
       <div className="flex items-center gap-2.5 px-4 py-3.5 border-b border-hairline">
         <button onClick={() => router.push("/messages")}><ChevronLeft size={22} /></button>
-        <button onClick={() => router.push(`/profile/${other?.username}`)} className="flex items-center gap-2.5">
-          <img src={other?.avatar_url || `https://picsum.photos/seed/${other?.username}/200/200`} alt="" className="w-8 h-8 rounded-full object-cover" />
-          <div className="font-semibold text-sm">{other?.username}</div>
-        </button>
+        {isGroup ? (
+          <div className="flex items-center gap-2.5">
+            <div className="flex -space-x-3">
+              {otherParticipants.slice(0, 3).map((p) => (
+                <img
+                  key={p.id}
+                  src={p.avatar_url || `https://picsum.photos/seed/${p.username}/200/200`}
+                  alt=""
+                  className="w-8 h-8 rounded-full object-cover border-2 border-paper"
+                />
+              ))}
+            </div>
+            <div className="min-w-0">
+              <div className="font-semibold text-sm truncate max-w-[200px]">{headerTitle}</div>
+              <div className="text-[10.5px] text-inksoft font-mono">{(participants || []).length} members</div>
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => router.push(`/profile/${other?.username}`)} className="flex items-center gap-2.5">
+            <img src={other?.avatar_url || `https://picsum.photos/seed/${other?.username}/200/200`} alt="" className="w-8 h-8 rounded-full object-cover" />
+            <div className="font-semibold text-sm">{other?.username}</div>
+          </button>
+        )}
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4">
         {messages.length === 0 && (
-          <div className="text-center text-inksoft text-sm py-8">Start the conversation with {other?.username}.</div>
+          <div className="text-center text-inksoft text-sm py-8">
+            {isGroup ? `Say hello to ${headerTitle}.` : `Start the conversation with ${other?.username}.`}
+          </div>
         )}
         {messages.map((m) => {
           const { counts, mine } = reactionsFor(m.id);
           const replied = m.reply_to_id ? findMessage(m.reply_to_id) : null;
           const isMe = m.sender_id === currentUserId;
+          const sender = isGroup && !isMe ? profileById(m.sender_id) : null;
 
           if (m.deleted) {
             return (
@@ -466,6 +514,7 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
           if (m.shared_post_id) {
             return (
               <div key={m.id} className={`flex flex-col mb-2.5 ${isMe ? "items-end" : "items-start"}`}>
+                {sender && <div className="text-[10.5px] text-inksoft font-mono mb-1 px-1">{sender.username}</div>}
                 <Link
                   href={`/post/${m.shared_post_id}`}
                   className="w-[200px] rounded-xl overflow-hidden border border-hairline bg-white block"
@@ -494,6 +543,7 @@ export default function ChatThread({ conversationId, currentUserId, other, initi
 
           return (
             <div key={m.id} className={`flex flex-col mb-2.5 ${isMe ? "items-end" : "items-start"}`}>
+              {sender && <div className="text-[10.5px] text-inksoft font-mono mb-1 px-1">{sender.username}</div>}
               {editingId === m.id ? (
                 <div className="w-[80%]">
                   <input
