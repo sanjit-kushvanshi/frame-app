@@ -207,7 +207,10 @@ export default function StoryViewer({ groups: initialGroups, startIndex, current
     }
   };
 
-  if (!group || !story) return null;
+  if (!group || !story) {
+    console.error("STORY VIEWER CLOSED: group or story became null/undefined", { group, story, groupIndex, storyIndex, groupsLength: groups?.length });
+    return null;
+  }
 
   return (
     <div className="fixed inset-0 bg-black z-[70] flex items-center justify-center">
