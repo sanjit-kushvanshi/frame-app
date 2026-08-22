@@ -65,7 +65,7 @@ export default function StoryViewer({ groups: initialGroups, startIndex, current
       setProgress(pct);
       if (pct >= 100) {
         clearInterval(intervalRef.current);
-        goNext();
+        goNextRef.current();
       }
     }, 50);
     return () => clearInterval(intervalRef.current);
