@@ -63,6 +63,7 @@ export default function NewMessagePage() {
     setCreating(true);
     const finalName = groupName.trim() || selected.map((p) => p.username).join(", ");
 
+    alert("currentUserId: " + currentUserId);
     const { data: convo, error: convoError } = await supabase
       .from("conversations")
       .insert({ is_group: true, name: finalName, created_by: currentUserId })
