@@ -5,10 +5,21 @@ export default async function InboxPage() {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  const { data: conversations } = await supabase
+  const { data: conversations, error: convoError } = await supabase
     .from("conversations")
     .select("id, user_a, user_b, created_at, last_read_a, last_read_b")
     .or(`user_a.eq.${user.id},user_b.eq.${user.id}`);
+
+  if (convoError) {
+    return (
+      <div className="px-4 py-6">
+        <div className="font-display italic text-[17px] mb-4">Messages</div>
+        <div className="text-xs font-mono text-amber border border-hairline rounded-lg p-3 whitespace-pre-wrap">
+          DEBUG ERROR: {JSON.stringify(convoError, null, 2)}
+        </div>
+      </div>
+    );
+  }
 
   const otherIds = (conversations || []).map((c) => (c.user_a === user.id ? c.user_b : c.user_a));
 
@@ -35,6 +46,9 @@ export default async function InboxPage() {
   return (
     <div>
       <div className="px-4 py-3 border-b border-hairline font-display italic text-[17px]">Messages</div>
+      <div className="px-4 py-2 text-[10px] font-mono text-inksoft">
+        DEBUG: found {conversations?.length || 0} conversations, user: {user.id}
+      </div>
       {enriched.length === 0 && (
         <div className="px-4 py-10 text-center text-inksoft text-sm">
           No conversations yet. Visit a profile and tap Message.
