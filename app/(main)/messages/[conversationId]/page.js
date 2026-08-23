@@ -45,6 +45,7 @@ export default async function ConversationPage({ params }) {
         currentUserId={user.id}
         isGroup={true}
         groupName={convo.name}
+        groupAvatarUrl={convo.avatar_url}
         participants={participants}
         initialMessages={messages || []}
         initialReactions={reactions || []}
