@@ -22,7 +22,15 @@ export default async function ConversationPage({ params }) {
 
     const participants = (participantRows || []).map((p) => p.profiles).filter(Boolean);
     const isMember = participants.some((p) => p.id === user.id);
-    if (!isMember) redirect("/messages");
+if (!isMember) {
+  return (
+    <div className="p-4 text-xs font-mono whitespace-pre-wrap">
+      DEBUG: not detected as member.
+      user.id: {user.id}
+      participants: {JSON.stringify(participants, null, 2)}
+    </div>
+  );
+}
 
     const { data: messages } = await supabase
       .from("messages")
