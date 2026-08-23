@@ -1,11 +1,15 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Camera, X, Check, Pencil } from "lucide-react";
+import { ChevronLeft, Camera, X, Check, Pencil, ShieldCheck, Link2, Copy } from "lucide-react";
 import { compressImage } from "@/lib/mediaCompress";
 import { createClient } from "@/lib/supabase/client";
 
-export default function GroupInfo({ conversationId, currentUserId, isCreator, groupName, groupAvatarUrl, participants }) {
+function generateCode() {
+  return Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6);
+}
+
+export default function GroupInfo({ conversationId, currentUserId, isAdmin, groupName, groupAvatarUrl, inviteCode, participants, initialJoinRequests }) {
   const supabase = createClient();
   const router = useRouter();
   const [avatarUrl, setAvatarUrl] = useState(groupAvatarUrl);
@@ -16,6 +20,9 @@ export default function GroupInfo({ conversationId, currentUserId, isCreator, gr
   const [addingMode, setAddingMode] = useState(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
+  const [code, setCode] = useState(inviteCode);
+  const [generatingLink, setGeneratingLink] = useState(false);
+  const [joinRequests, setJoinRequests] = useState(initialJoinRequests || []);
 
   useEffect(() => {
     if (!addingMode) return;
@@ -86,8 +93,51 @@ export default function GroupInfo({ conversationId, currentUserId, isCreator, gr
       alert("Couldn't add member: " + error.message);
       return;
     }
-    setMembers((prev) => [...prev, profile]);
+    setMembers((prev) => [...prev, { ...profile, isAdmin: false }]);
     setResults((prev) => prev.filter((p) => p.id !== profile.id));
+  };
+
+  const makeAdmin = async (userId) => {
+    const { error } = await supabase.from("conversation_participants").update({ is_admin: true }).eq("conversation_id", conversationId).eq("user_id", userId);
+    if (error) {
+      alert("Couldn't make admin: " + error.message);
+      return;
+    }
+    setMembers((prev) => prev.map((m) => (m.id === userId ? { ...m, isAdmin: true } : m)));
+  };
+
+  const generateLink = async () => {
+    setGeneratingLink(true);
+    const newCode = generateCode();
+    const { error } = await supabase.from("conversations").update({ invite_code: newCode }).eq("id", conversationId);
+    setGeneratingLink(false);
+    if (error) {
+      alert("Couldn't generate invite link: " + error.message);
+      return;
+    }
+    setCode(newCode);
+  };
+
+  const copyLink = () => {
+    const url = `${window.location.origin}/messages/join/${code}`;
+    navigator.clipboard.writeText(url);
+    alert("Invite link copied.");
+  };
+
+  const approveRequest = async (req) => {
+    const { error: insertError } = await supabase.from("conversation_participants").insert({ conversation_id: conversationId, user_id: req.user_id });
+    if (insertError) {
+      alert("Couldn't approve: " + insertError.message);
+      return;
+    }
+    await supabase.from("conversation_join_requests").delete().eq("id", req.id);
+    setJoinRequests((prev) => prev.filter((r) => r.id !== req.id));
+    if (req.profile) setMembers((prev) => [...prev, { ...req.profile, isAdmin: false }]);
+  };
+
+  const rejectRequest = async (req) => {
+    await supabase.from("conversation_join_requests").delete().eq("id", req.id);
+    setJoinRequests((prev) => prev.filter((r) => r.id !== req.id));
   };
 
   return (
@@ -133,6 +183,45 @@ export default function GroupInfo({ conversationId, currentUserId, isCreator, gr
           </div>
         </div>
 
+        {isAdmin && (
+          <div className="px-4 py-3 border-b border-hairline">
+            <div className="flex items-center gap-2 text-[12.5px] font-semibold text-inksoft mb-2">
+              <Link2 size={14} /> Invite link
+            </div>
+            {code ? (
+              <div className="flex items-center gap-2">
+                <div className="flex-1 text-[11.5px] font-mono truncate bg-paperdim rounded-lg px-2.5 py-2">
+                  {typeof window !== "undefined" ? `${window.location.origin}/messages/join/${code}` : code}
+                </div>
+                <button onClick={copyLink} className="flex-shrink-0"><Copy size={16} /></button>
+              </div>
+            ) : (
+              <div className="text-[12px] text-inksoft mb-2">No active invite link.</div>
+            )}
+            <button onClick={generateLink} disabled={generatingLink} className="text-[11.5px] font-semibold mt-2" style={{ color: "#FF6B35" }}>
+              {generatingLink ? "Generating..." : code ? "Generate new link" : "Create invite link"}
+            </button>
+          </div>
+        )}
+
+        {isAdmin && joinRequests.length > 0 && (
+          <div className="px-4 py-3 border-b border-hairline">
+            <div className="text-[12.5px] font-semibold text-inksoft mb-2">Join requests</div>
+            {joinRequests.map((req) => (
+              <div key={req.id} className="flex items-center gap-3 py-2">
+                <img
+                  src={req.profile?.avatar_url || `https://picsum.photos/seed/${req.profile?.username}/200/200`}
+                  alt=""
+                  className="w-9 h-9 rounded-full object-cover"
+                />
+                <div className="flex-1 text-[13px] font-semibold">{req.profile?.username}</div>
+                <button onClick={() => approveRequest(req)} className="text-[11.5px] font-semibold" style={{ color: "#FF6B35" }}>Approve</button>
+                <button onClick={() => rejectRequest(req)} className="text-[11.5px] text-inksoft">Reject</button>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="px-4 py-3 flex items-center justify-between">
           <div className="text-[12.5px] font-semibold text-inksoft">{members.length} members</div>
           <button onClick={() => setAddingMode((a) => !a)} className="text-[12.5px] font-semibold" style={{ color: "#FF6B35" }}>
@@ -161,11 +250,26 @@ export default function GroupInfo({ conversationId, currentUserId, isCreator, gr
         {members.map((m) => (
           <div key={m.id} className="flex items-center gap-3 px-4 py-2.5 border-b border-hairline">
             <img src={m.avatar_url || `https://picsum.photos/seed/${m.username}/200/200`} alt="" className="w-10 h-10 rounded-full object-cover" />
-            <div className="flex-1 text-[13.5px] font-semibold">
-              {m.username} {m.id === currentUserId && <span className="text-inksoft font-normal">(you)</span>}
+            <div className="flex-1 min-w-0">
+              <div className="text-[13.5px] font-semibold flex items-center gap-1.5">
+                <span className="truncate">{m.username}</span>
+                {m.id === currentUserId && <span className="text-inksoft font-normal flex-shrink-0">(you)</span>}
+                {m.isAdmin && (
+                  <span className="flex items-center gap-0.5 text-[10px] font-mono px-1.5 py-0.5 rounded-full flex-shrink-0" style={{ color: "#FF6B35", background: "#FFE8DC" }}>
+                    <ShieldCheck size={10} /> Admin
+                  </span>
+                )}
+              </div>
             </div>
-            {isCreator && m.id !== currentUserId && (
-              <button onClick={() => removeMember(m.id)} className="text-[11.5px] text-amber font-semibold">Remove</button>
+            {isAdmin && m.id !== currentUserId && (
+              <div className="flex items-center gap-3 flex-shrink-0">
+                {!m.isAdmin && (
+                  <button onClick={() => makeAdmin(m.id)} className="text-[11px] font-semibold" style={{ color: "#FF6B35" }}>
+                    Make admin
+                  </button>
+                )}
+                <button onClick={() => removeMember(m.id)} className="text-[11.5px] text-amber font-semibold">Remove</button>
+              </div>
             )}
           </div>
         ))}
