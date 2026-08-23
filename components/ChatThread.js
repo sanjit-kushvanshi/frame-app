@@ -81,6 +81,7 @@ export default function ChatThread({
   other,
   isGroup = false,
   groupName,
+  groupAvatarUrl,
   participants,
   initialMessages,
   initialReactions,
