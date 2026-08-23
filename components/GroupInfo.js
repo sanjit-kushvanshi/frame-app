@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Camera, X, Check, Pencil, ShieldCheck, Link2, Copy } from "lucide-react";
+import { ChevronLeft, Camera, X, Check, Pencil, ShieldCheck, Link2, Copy, Share2, Send } from "lucide-react";
 import { compressImage } from "@/lib/mediaCompress";
 import { createClient } from "@/lib/supabase/client";
 
@@ -23,6 +23,10 @@ export default function GroupInfo({ conversationId, currentUserId, isAdmin, grou
   const [code, setCode] = useState(inviteCode);
   const [generatingLink, setGeneratingLink] = useState(false);
   const [joinRequests, setJoinRequests] = useState(initialJoinRequests || []);
+  const [forwardPickerOpen, setForwardPickerOpen] = useState(false);
+  const [forwardConvos, setForwardConvos] = useState([]);
+  const [forwardLoading, setForwardLoading] = useState(false);
+  const [sentTo, setSentTo] = useState([]);
 
   useEffect(() => {
     if (!addingMode) return;
@@ -124,20 +128,64 @@ export default function GroupInfo({ conversationId, currentUserId, isAdmin, grou
     alert("Invite link copied.");
   };
 
-  const approveRequest = async (req) => {
-    const { error: insertError } = await supabase.from("conversation_participants").insert({ conversation_id: conversationId, user_id: req.user_id });
-    if (insertError) {
-      alert("Couldn't approve: " + insertError.message);
-      return;
+  const shareLink = async () => {
+    const url = `${window.location.origin}/messages/join/${code}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: nameInput || "Join my group on Frame", url });
+      } catch (e) {}
+    } else {
+      copyLink();
     }
-    await supabase.from("conversation_join_requests").delete().eq("id", req.id);
-    setJoinRequests((prev) => prev.filter((r) => r.id !== req.id));
-    if (req.profile) setMembers((prev) => [...prev, { ...req.profile, isAdmin: false }]);
   };
 
-  const rejectRequest = async (req) => {
-    await supabase.from("conversation_join_requests").delete().eq("id", req.id);
-    setJoinRequests((prev) => prev.filter((r) => r.id !== req.id));
+  const openForwardPicker = async () => {
+    setForwardPickerOpen(true);
+    setForwardLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+
+    const { data: directConvos } = await supabase
+      .from("conversations")
+      .select("id, user_a, user_b, is_group, name")
+      .or(`user_a.eq.${user.id},user_b.eq.${user.id}`)
+      .eq("is_group", false);
+
+    const otherIds = (directConvos || []).map((c) => (c.user_a === user.id ? c.user_b : c.user_a));
+    const { data: profiles } = otherIds.length
+      ? await supabase.from("profiles").select("id, username, avatar_url").in("id", otherIds)
+      : { data: [] };
+
+    const { data: myGroupRows } = await supabase.from("conversation_participants").select("conversation_id").eq("user_id", user.id);
+    const groupIds = (myGroupRows || []).map((r) => r.conversation_id).filter((id) => id !== conversationId);
+    const { data: groupConvos } = groupIds.length
+      ? await supabase.from("conversations").select("id, name, avatar_url, is_group").in("id", groupIds).eq("is_group", true)
+      : { data: [] };
+
+    const list = [
+      ...(directConvos || []).map((c) => ({
+        id: c.id,
+        label: (profiles || []).find((p) => p.id === (c.user_a === user.id ? c.user_b : c.user_a))?.username || "Unknown",
+        avatar: (profiles || []).find((p) => p.id === (c.user_a === user.id ? c.user_b : c.user_a))?.avatar_url,
+      })),
+      ...(groupConvos || []).map((g) => ({ id: g.id, label: g.name, avatar: g.avatar_url })),
+    ];
+    setForwardConvos(list);
+    setForwardLoading(false);
+  };
+
+  const forwardTo = async (targetConversationId) => {
+    const url = `${window.location.origin}/messages/join/${code}`;
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.from("messages").insert({
+      conversation_id: targetConversationId,
+      sender_id: user.id,
+      text: `Join "${nameInput}" on Frame: ${url}`,
+    });
+    if (error) {
+      alert("Couldn't forward: " + error.message);
+      return;
+    }
+    setSentTo((prev) => [...prev, targetConversationId]);
   };
 
   return (
@@ -189,12 +237,18 @@ export default function GroupInfo({ conversationId, currentUserId, isAdmin, grou
               <Link2 size={14} /> Invite link
             </div>
             {code ? (
-              <div className="flex items-center gap-2">
-                <div className="flex-1 text-[11.5px] font-mono truncate bg-paperdim rounded-lg px-2.5 py-2">
-                  {typeof window !== "undefined" ? `${window.location.origin}/messages/join/${code}` : code}
+              <>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 text-[11.5px] font-mono truncate bg-paperdim rounded-lg px-2.5 py-2">
+                    {typeof window !== "undefined" ? `${window.location.origin}/messages/join/${code}` : code}
+                  </div>
+                  <button onClick={copyLink} className="flex-shrink-0"><Copy size={16} /></button>
+                  <button onClick={shareLink} className="flex-shrink-0"><Share2 size={16} /></button>
                 </div>
-                <button onClick={copyLink} className="flex-shrink-0"><Copy size={16} /></button>
-              </div>
+                <button onClick={openForwardPicker} className="flex items-center gap-1.5 text-[11.5px] font-semibold mt-2" style={{ color: "#FF6B35" }}>
+                  <Send size={13} /> Forward to a chat
+                </button>
+              </>
             ) : (
               <div className="text-[12px] text-inksoft mb-2">No active invite link.</div>
             )}
@@ -280,6 +334,35 @@ export default function GroupInfo({ conversationId, currentUserId, isAdmin, grou
           </button>
         </div>
       </div>
+
+      {forwardPickerOpen && (
+        <div className="fixed inset-0 bg-[rgba(28,26,23,0.4)] z-50 flex items-end" onClick={() => setForwardPickerOpen(false)}>
+          <div onClick={(e) => e.stopPropagation()} className="bg-paper w-full rounded-t-2xl p-4 max-h-[70vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-3">
+              <div className="font-semibold text-sm">Forward invite to...</div>
+              <button onClick={() => setForwardPickerOpen(false)}><X size={18} /></button>
+            </div>
+            {forwardLoading && <div className="text-center text-inksoft text-xs py-6">Loading...</div>}
+            {!forwardLoading && forwardConvos.length === 0 && (
+              <div className="text-center text-inksoft text-xs py-6">No conversations to forward to.</div>
+            )}
+            {!forwardLoading &&
+              forwardConvos.map((c) => (
+                <div key={c.id} className="flex items-center gap-3 py-2">
+                  <img src={c.avatar || `https://picsum.photos/seed/${c.label}/200/200`} alt="" className="w-9 h-9 rounded-full object-cover" />
+                  <div className="flex-1 text-[13px] font-semibold truncate">{c.label}</div>
+                  {sentTo.includes(c.id) ? (
+                    <span className="text-[11px] text-inksoft">Sent</span>
+                  ) : (
+                    <button onClick={() => forwardTo(c.id)} className="text-[11.5px] font-semibold" style={{ color: "#FF6B35" }}>
+                      Send
+                    </button>
+                  )}
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
