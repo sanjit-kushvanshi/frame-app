@@ -8,7 +8,7 @@ export default async function ConversationPage({ params }) {
 
   const { data: convo } = await supabase
     .from("conversations")
-    .select("id, user_a, user_b, is_group, name")
+    .select("id, user_a, user_b, is_group, name, avatar_url, created_by")
     .eq("id", params.conversationId)
     .maybeSingle();
 
