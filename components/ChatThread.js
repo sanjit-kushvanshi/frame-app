@@ -2,19 +2,64 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, SendHorizontal, ImagePlus, X, Smile, Clapperboard, CornerUpLeft, Pencil, Trash2, Heart, Mic, Square, Play, Pause } from "lucide-react";
+import { ChevronLeft, SendHorizontal, ImagePlus, X, Smile, Clapperboard, CornerUpLeft, CornerUpRight, Pencil, Trash2, Heart, Mic, Square, Play, Pause, Copy } from "lucide-react";
 import { compressImage, checkVideoSize } from "@/lib/mediaCompress";
 import { createClient } from "@/lib/supabase/client";
 
 const STICKERS = ["❤️", "🔥", "😂", "😍", "👍", "🎉", "😭", "👀", "💀", "✨", "🙏", "😮"];
 const REACTION_EMOJIS = ["❤️", "😂", "😮", "😢", "👍", "🔥"];
 const GIPHY_API_KEY = "fR9MLGSAdqsbgT2S4RXDUoKLEBnHEPqA";
+const URL_REGEX = /(https?:\/\/[^\s]+)/g;
 
 function formatDuration(seconds) {
   const s = Math.max(0, Math.floor(seconds || 0));
   const m = Math.floor(s / 60);
   const rem = s % 60;
   return `${m}:${rem.toString().padStart(2, "0")}`;
+}
+
+function splitTextWithLinks(text) {
+  if (!text) return [];
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+  const regex = new RegExp(URL_REGEX);
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) parts.push({ type: "text", value: text.slice(lastIndex, match.index) });
+    parts.push({ type: "link", value: match[0] });
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < text.length) parts.push({ type: "text", value: text.slice(lastIndex) });
+  return parts;
+}
+
+function MessageText({ text, isMe, onLinkClick }) {
+  const parts = splitTextWithLinks(text);
+  return (
+    <>
+      {parts.map((p, i) =>
+        p.type === "link" ? (
+          <span
+            key={i}
+            onClick={(e) => {
+              e.stopPropagation();
+              onLinkClick(p.value);
+            }}
+            style={{
+              color: isMe ? "#FFC9AC" : "#FF6B35",
+              textDecoration: "underline",
+              cursor: "pointer",
+              wordBreak: "break-all",
+            }}
+          >
+            {p.value}
+          </span>
+        ) : (
+          <span key={i}>{p.value}</span>
+        )
+      )}
+    </>
+  );
 }
 
 function VoiceMessage({ url, isMe }) {
@@ -106,6 +151,11 @@ export default function ChatThread({
   const [recording, setRecording] = useState(false);
   const [recordSeconds, setRecordSeconds] = useState(0);
   const [recordError, setRecordError] = useState("");
+  const [lightbox, setLightbox] = useState(null); // { url, type: "image" | "video" }
+  const [forwardFor, setForwardFor] = useState(null);
+  const [forwardList, setForwardList] = useState([]);
+  const [forwardLoading, setForwardLoading] = useState(false);
+  const [forwardSentTo, setForwardSentTo] = useState(new Set());
   const scrollRef = useRef(null);
   const fileInputRef = useRef(null);
   const messagesRef = useRef(messages);
@@ -113,6 +163,8 @@ export default function ChatThread({
   const recordedChunksRef = useRef([]);
   const recordTimerRef = useRef(null);
   const mediaStreamRef = useRef(null);
+  const longPressTimerRef = useRef(null);
+  const longPressTriggeredRef = useRef(false);
 
   const otherParticipants = isGroup ? (participants || []).filter((p) => p.id !== currentUserId) : [];
   const profileById = (id) => {
@@ -187,6 +239,7 @@ export default function ChatThread({
   useEffect(() => {
     return () => {
       clearInterval(recordTimerRef.current);
+      clearTimeout(longPressTimerRef.current);
       mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
     };
   }, []);
@@ -397,6 +450,58 @@ export default function ChatThread({
     setReactPickerOpen(false);
   };
 
+  // --- Long-press handling: hold ~400ms to open action sheet, tap is reserved for content ---
+  const handlePressStart = (m) => () => {
+    longPressTriggeredRef.current = false;
+    clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = setTimeout(() => {
+      longPressTriggeredRef.current = true;
+      openActionSheet(m);
+      if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(10);
+    }, 400);
+  };
+
+  const handlePressEnd = () => {
+    clearTimeout(longPressTimerRef.current);
+  };
+
+  // Runs in the capture phase, before any inner link/media onClick fires.
+  // If a long-press just happened, swallow the click so it doesn't also navigate/open.
+  const handleBubbleClickCapture = (e) => {
+    if (longPressTriggeredRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      longPressTriggeredRef.current = false;
+    }
+  };
+
+  const pressHandlers = (m) => ({
+    onClickCapture: handleBubbleClickCapture,
+    onTouchStart: handlePressStart(m),
+    onTouchEnd: handlePressEnd,
+    onTouchCancel: handlePressEnd,
+    onTouchMove: handlePressEnd,
+    onMouseDown: handlePressStart(m),
+    onMouseUp: handlePressEnd,
+    onMouseLeave: handlePressEnd,
+  });
+
+  const handleLinkClick = (url) => {
+    try {
+      const parsed = new URL(url);
+      if (typeof window !== "undefined" && parsed.origin === window.location.origin) {
+        router.push(parsed.pathname + parsed.search + parsed.hash);
+        return;
+      }
+    } catch (e) {}
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const openLightbox = (url, type) => (e) => {
+    e.stopPropagation();
+    setLightbox({ url, type });
+  };
+
   const startReply = () => {
     setReplyingTo(actionSheetFor);
     setActionSheetFor(null);
@@ -432,6 +537,88 @@ export default function ChatThread({
       .select()
       .single();
     if (!error && data) setMessages((prev) => prev.map((m) => (m.id === data.id ? { ...m, ...data } : m)));
+  };
+
+  const copyMessage = async () => {
+    const m = actionSheetFor;
+    setActionSheetFor(null);
+    if (!m) return;
+    const value = m.media_url || m.text || "";
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(value);
+    } catch (e) {}
+  };
+
+  const openForward = async () => {
+    const m = actionSheetFor;
+    setActionSheetFor(null);
+    if (!m) return;
+    setForwardFor(m);
+    setForwardLoading(true);
+    setForwardSentTo(new Set());
+
+    const { data: partRows } = await supabase
+      .from("conversation_participants")
+      .select("conversation_id")
+      .eq("user_id", currentUserId);
+
+    const convoIds = [...new Set((partRows || []).map((r) => r.conversation_id))];
+    if (convoIds.length === 0) {
+      setForwardList([]);
+      setForwardLoading(false);
+      return;
+    }
+
+    const { data: convos } = await supabase
+      .from("conversations")
+      .select("id, is_group, name, avatar_url")
+      .in("id", convoIds);
+
+    const { data: allParts } = await supabase
+      .from("conversation_participants")
+      .select("conversation_id, user_id")
+      .in("conversation_id", convoIds);
+
+    const otherIds = [...new Set((allParts || []).filter((p) => p.user_id !== currentUserId).map((p) => p.user_id))];
+    const { data: profs } = otherIds.length
+      ? await supabase.from("profiles").select("id, username, avatar_url").in("id", otherIds)
+      : { data: [] };
+    const profById = {};
+    (profs || []).forEach((p) => (profById[p.id] = p));
+
+    const list = (convos || [])
+      .filter((c) => c.id !== conversationId)
+      .map((c) => {
+        if (c.is_group) {
+          return { id: c.id, title: c.name || "Group", avatar_url: c.avatar_url, isGroup: true };
+        }
+        const otherRow = (allParts || []).find((p) => p.conversation_id === c.id && p.user_id !== currentUserId);
+        const prof = otherRow ? profById[otherRow.user_id] : null;
+        return { id: c.id, title: prof?.username || "Direct message", avatar_url: prof?.avatar_url, isGroup: false };
+      });
+
+    setForwardList(list);
+    setForwardLoading(false);
+  };
+
+  const forwardTo = async (targetConversationId) => {
+    const m = forwardFor;
+    if (!m) return;
+    const payload = { conversation_id: targetConversationId, sender_id: currentUserId };
+    if (m.shared_post_id) {
+      payload.shared_post_id = m.shared_post_id;
+    } else if (m.media_url) {
+      payload.media_url = m.media_url;
+      payload.media_type = m.media_type;
+    } else {
+      payload.text = m.text;
+      if (m.media_type === "sticker") payload.media_type = "sticker";
+    }
+    const { error } = await supabase.from("messages").insert(payload);
+    if (!error) {
+      setForwardSentTo((prev) => new Set(prev).add(targetConversationId));
+    }
   };
 
   const toggleReaction = async (emoji) => {
@@ -520,28 +707,30 @@ export default function ChatThread({
             return (
               <div key={m.id} className={`flex flex-col mb-2.5 ${isMe ? "items-end" : "items-start"}`}>
                 {sender && <div className="text-[10.5px] text-inksoft font-mono mb-1 px-1">{sender.username}</div>}
-                <Link
-                  href={`/post/${m.shared_post_id}`}
-                  className="w-[200px] rounded-xl overflow-hidden border border-hairline bg-white block"
-                >
-                  <div className="aspect-square relative bg-paperdim">
-                    {m.posts ? (
-                      m.posts.media_type === "video" ? (
-                        <video src={m.posts.image_url} className="w-full h-full object-cover" />
+                <div {...pressHandlers(m)}>
+                  <Link
+                    href={`/post/${m.shared_post_id}`}
+                    className="w-[200px] rounded-xl overflow-hidden border border-hairline bg-white block"
+                  >
+                    <div className="aspect-square relative bg-paperdim">
+                      {m.posts ? (
+                        m.posts.media_type === "video" ? (
+                          <video src={m.posts.image_url} className="w-full h-full object-cover" />
+                        ) : (
+                          <img src={m.posts.image_url} alt="" className="w-full h-full object-cover" />
+                        )
                       ) : (
-                        <img src={m.posts.image_url} alt="" className="w-full h-full object-cover" />
-                      )
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-inksoft text-[11px] font-mono">Post unavailable</div>
-                    )}
-                  </div>
-                  {m.posts && (
-                    <div className="px-2.5 py-2 text-[11px]">
-                      <div className="font-semibold">{m.posts.profiles?.username}</div>
-                      {m.posts.caption && <div className="text-inksoft truncate">{m.posts.caption}</div>}
+                        <div className="w-full h-full flex items-center justify-center text-inksoft text-[11px] font-mono">Post unavailable</div>
+                      )}
                     </div>
-                  )}
-                </Link>
+                    {m.posts && (
+                      <div className="px-2.5 py-2 text-[11px]">
+                        <div className="font-semibold">{m.posts.profiles?.username}</div>
+                        {m.posts.caption && <div className="text-inksoft truncate">{m.posts.caption}</div>}
+                      </div>
+                    )}
+                  </Link>
+                </div>
               </div>
             );
           }
@@ -562,7 +751,7 @@ export default function ChatThread({
                   </div>
                 </div>
               ) : (
-                <div onClick={() => openActionSheet(m)} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
+                <div {...pressHandlers(m)} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
                   {m.media_type === "sticker" ? (
                     <div className="text-5xl leading-none px-1">{m.text}</div>
                   ) : (
@@ -593,7 +782,12 @@ export default function ChatThread({
                         </div>
                       )}
                       {m.media_url && (m.media_type === "image" || m.media_type === "gif") && (
-                        <img src={m.media_url} alt="" className="w-full max-w-[240px] rounded-2xl block" />
+                        <img
+                          src={m.media_url}
+                          alt=""
+                          onClick={openLightbox(m.media_url, "image")}
+                          className="w-full max-w-[240px] rounded-2xl block cursor-pointer"
+                        />
                       )}
                       {m.media_url && m.media_type === "video" && (
                         <video src={m.media_url} controls onClick={(e) => e.stopPropagation()} className="w-full max-w-[240px] rounded-2xl block" />
@@ -603,7 +797,11 @@ export default function ChatThread({
                           <VoiceMessage url={m.media_url} isMe={isMe} />
                         </div>
                       )}
-                      {m.text && <div className={m.media_url ? "mt-1.5 px-1" : ""}>{m.text}</div>}
+                      {m.text && (
+                        <div className={m.media_url ? "mt-1.5 px-1" : ""}>
+                          <MessageText text={m.text} isMe={isMe} onLinkClick={handleLinkClick} />
+                        </div>
+                      )}
                       {m.edited_at && <div className="text-[10px] opacity-60 mt-0.5">(edited)</div>}
                     </div>
                   )}
@@ -642,6 +840,12 @@ export default function ChatThread({
                 <button onClick={startReply} className="w-full flex items-center gap-3 px-4 py-3 text-[14px]">
                   <CornerUpLeft size={18} /> Reply
                 </button>
+                <button onClick={copyMessage} className="w-full flex items-center gap-3 px-4 py-3 text-[14px]">
+                  <Copy size={18} /> Copy
+                </button>
+                <button onClick={openForward} className="w-full flex items-center gap-3 px-4 py-3 text-[14px]">
+                  <CornerUpRight size={18} /> Forward
+                </button>
                 {actionSheetFor.sender_id === currentUserId && !actionSheetFor.media_url && (
                   <button onClick={startEdit} className="w-full flex items-center gap-3 px-4 py-3 text-[14px]">
                     <Pencil size={18} /> Edit
@@ -662,6 +866,67 @@ export default function ChatThread({
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {lightbox && (
+        <div
+          className="fixed inset-0 bg-black z-[60] flex items-center justify-center"
+          onClick={() => setLightbox(null)}
+        >
+          <button
+            onClick={() => setLightbox(null)}
+            className="absolute top-4 right-4 text-white z-10"
+            aria-label="Close"
+          >
+            <X size={26} />
+          </button>
+          {lightbox.type === "video" ? (
+            <video src={lightbox.url} controls autoPlay className="max-w-full max-h-full" onClick={(e) => e.stopPropagation()} />
+          ) : (
+            <img src={lightbox.url} alt="" className="max-w-full max-h-full object-contain" onClick={(e) => e.stopPropagation()} />
+          )}
+        </div>
+      )}
+
+      {forwardFor && (
+        <div className="fixed inset-0 bg-[rgba(28,26,23,0.4)] z-50 flex items-end" onClick={() => setForwardFor(null)}>
+          <div onClick={(e) => e.stopPropagation()} className="bg-paper w-full rounded-t-2xl p-4 pb-6 max-h-[70vh] flex flex-col">
+            <div className="flex items-center justify-between mb-3">
+              <div className="font-semibold text-[15px]">Forward to...</div>
+              <button onClick={() => setForwardFor(null)}><X size={18} /></button>
+            </div>
+            <div className="overflow-y-auto flex-1">
+              {forwardLoading && <div className="text-center text-inksoft text-sm py-6">Loading...</div>}
+              {!forwardLoading && forwardList.length === 0 && (
+                <div className="text-center text-inksoft text-sm py-6">No conversations to forward to.</div>
+              )}
+              {!forwardLoading &&
+                forwardList.map((c) => (
+                  <div key={c.id} className="flex items-center justify-between py-2.5">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <img
+                        src={c.avatar_url || `https://picsum.photos/seed/${c.id}/200/200`}
+                        alt=""
+                        className="w-9 h-9 rounded-full object-cover flex-shrink-0"
+                      />
+                      <div className="text-[13.5px] truncate">{c.title}</div>
+                    </div>
+                    <button
+                      onClick={() => forwardTo(c.id)}
+                      disabled={forwardSentTo.has(c.id)}
+                      className="text-[12.5px] font-semibold px-3.5 py-1.5 rounded-full flex-shrink-0"
+                      style={{
+                        background: forwardSentTo.has(c.id) ? "#DCD6C8" : "#FF6B35",
+                        color: forwardSentTo.has(c.id) ? "#1C1A17" : "#fff",
+                      }}
+                    >
+                      {forwardSentTo.has(c.id) ? "Sent" : "Send"}
+                    </button>
+                  </div>
+                ))}
+            </div>
           </div>
         </div>
       )}
@@ -775,7 +1040,7 @@ export default function ChatThread({
           >
             <Clapperboard size={22} strokeWidth={1.6} color={gifPickerOpen ? "#FF6B35" : "#1C1A17"} />
           </button>
-          <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple onChange={handleFiles} className="hidden" />
+<input ref={fileInputRef} type="file" accept="image/*,video/*" multiple onChange={handleFiles} className="hidden" />
           <input
             value={text}
             onChange={(e) => setText(e.target.value)}
