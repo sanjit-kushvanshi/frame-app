@@ -468,22 +468,26 @@ export default function ChatThread({
       <div className="flex items-center gap-2.5 px-4 py-3.5 border-b border-hairline">
         <button onClick={() => router.push("/messages")}><ChevronLeft size={22} /></button>
         {isGroup ? (
-          <div className="flex items-center gap-2.5">
-            <div className="flex -space-x-3">
-              {otherParticipants.slice(0, 3).map((p) => (
-                <img
-                  key={p.id}
-                  src={p.avatar_url || `https://picsum.photos/seed/${p.username}/200/200`}
-                  alt=""
-                  className="w-8 h-8 rounded-full object-cover border-2 border-paper"
-                />
-              ))}
-            </div>
+          <button onClick={() => router.push(`/messages/${conversationId}/info`)} className="flex items-center gap-2.5">
+            {groupAvatarUrl ? (
+              <img src={groupAvatarUrl} alt="" className="w-8 h-8 rounded-full object-cover" />
+            ) : (
+              <div className="flex -space-x-3">
+                {otherParticipants.slice(0, 3).map((p) => (
+                  <img
+                    key={p.id}
+                    src={p.avatar_url || `https://picsum.photos/seed/${p.username}/200/200`}
+                    alt=""
+                    className="w-8 h-8 rounded-full object-cover border-2 border-paper"
+                  />
+                ))}
+              </div>
+            )}
             <div className="min-w-0">
               <div className="font-semibold text-sm truncate max-w-[200px]">{headerTitle}</div>
               <div className="text-[10.5px] text-inksoft font-mono">{(participants || []).length} members</div>
             </div>
-          </div>
+          </button>
         ) : (
           <button onClick={() => router.push(`/profile/${other?.username}`)} className="flex items-center gap-2.5">
             <img src={other?.avatar_url || `https://picsum.photos/seed/${other?.username}/200/200`} alt="" className="w-8 h-8 rounded-full object-cover" />
