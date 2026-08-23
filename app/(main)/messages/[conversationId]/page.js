@@ -15,22 +15,18 @@ export default async function ConversationPage({ params }) {
   if (!convo) notFound();
 
   if (convo.is_group) {
-    const { data: participantRows } = await supabase
-      .from("conversation_participants")
-      .select("user_id, profiles!user_id(id, username, avatar_url)")
-      .eq("conversation_id", convo.id);
+  const { data: participantRows } = await supabase
+    .from("conversation_participants")
+    .select("user_id")
+    .eq("conversation_id", convo.id);
 
-    const participants = (participantRows || []).map((p) => p.profiles).filter(Boolean);
-    const isMember = participants.some((p) => p.id === user.id);
-if (!isMember) {
-  return (
-    <div className="p-4 text-xs font-mono whitespace-pre-wrap">
-      DEBUG: not detected as member.
-      user.id: {user.id}
-      participants: {JSON.stringify(participants, null, 2)}
-    </div>
-  );
-}
+  const participantIds = (participantRows || []).map((p) => p.user_id);
+  const { data: participants } = participantIds.length
+    ? await supabase.from("profiles").select("id, username, avatar_url").in("id", participantIds)
+    : { data: [] };
+
+  const isMember = participantIds.includes(user.id);
+  if (!isMember) redirect("/messages");
 
     const { data: messages } = await supabase
       .from("messages")
