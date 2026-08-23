@@ -76,9 +76,10 @@ export default function NewMessagePage() {
     }
 
     const participantRows = [currentUserId, ...selected.map((p) => p.id)].map((user_id) => ({
-      conversation_id: convo.id,
-      user_id,
-    }));
+  conversation_id: convo.id,
+  user_id,
+  is_admin: user_id === currentUserId,
+}));
 
     const { error: participantsError } = await supabase.from("conversation_participants").insert(participantRows);
 
