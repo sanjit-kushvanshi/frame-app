@@ -25,7 +25,7 @@ export default async function InboxPage() {
 
   const groupIds = (myGroupRows || []).map((r) => r.conversation_id);
   const { data: groupConvos } = groupIds.length
-    ? await supabase.from("conversations").select("id, created_at, is_group, name").in("id", groupIds).eq("is_group", true)
+    ? await supabase.from("conversations").select("id, created_at, is_group, name, avatar_url").in("id", groupIds).eq("is_group", true)
     : { data: [] };
 
   const { data: groupParticipantRows } = (groupConvos || []).length
@@ -61,6 +61,7 @@ export default async function InboxPage() {
       id: g.id,
       isGroup: true,
       groupName: g.name || members.map((m) => m.username).join(", "),
+      groupAvatarUrl: g.avatar_url,
       members,
       last,
       unread,
@@ -86,16 +87,20 @@ export default async function InboxPage() {
       {enriched.map((c) =>
         c.isGroup ? (
           <Link key={c.id} href={`/messages/${c.id}`} className="flex items-center gap-3 px-4 py-3 border-b border-hairline">
-            <div className="flex -space-x-3 w-11 flex-shrink-0">
-              {c.members.slice(0, 2).map((m) => (
-                <img
-                  key={m.id}
-                  src={m.avatar_url || `https://picsum.photos/seed/${m.username}/200/200`}
-                  alt=""
-                  className="w-8 h-8 rounded-full object-cover border-2 border-paper"
-                />
-              ))}
-            </div>
+            {c.groupAvatarUrl ? (
+              <img src={c.groupAvatarUrl} alt="" className="w-11 h-11 rounded-full object-cover flex-shrink-0" />
+            ) : (
+              <div className="flex -space-x-3 w-11 flex-shrink-0">
+                {c.members.slice(0, 2).map((m) => (
+                  <img
+                    key={m.id}
+                    src={m.avatar_url || `https://picsum.photos/seed/${m.username}/200/200`}
+                    alt=""
+                    className="w-8 h-8 rounded-full object-cover border-2 border-paper"
+                  />
+                ))}
+              </div>
+            )}
             <div className="flex-1 min-w-0">
               <div className={`text-[13.5px] truncate ${c.unread ? "font-bold" : "font-semibold"}`}>{c.groupName}</div>
               <div className={`text-xs truncate ${c.unread ? "font-bold text-ink" : "text-inksoft"}`}>
