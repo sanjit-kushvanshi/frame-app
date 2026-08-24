@@ -37,8 +37,37 @@ export default async function InboxPage() {
 
   const allConvoIds = [...oneOnOne.map((c) => c.id), ...(groupConvos || []).map((c) => c.id)];
   const { data: lastMessages } = allConvoIds.length
-    ? await supabase.from("messages").select("conversation_id, text, media_type, sender_id, created_at").in("conversation_id", allConvoIds).order("created_at", { ascending: false })
+    ? await supabase.from("messages").select("conversation_id, text, media_type, sender_id, created_at, shared_post_id").in("conversation_id", allConvoIds).order("created_at", { ascending: false })
     : { data: [] };
+
+  const getPreviewText = (message, currentUserId) => {
+    if (!message) return "Say hello";
+    
+    const prefix = message.sender_id === currentUserId ? "You: " : "";
+    
+    if (message.text && message.media_type !== "sticker") {
+      return prefix + message.text;
+    }
+    
+    if (message.shared_post_id) {
+      return prefix + "Sent a post";
+    }
+    
+    switch (message.media_type) {
+      case "voice":
+        return prefix + "Sent a voice note";
+      case "gif":
+        return prefix + "Sent a GIF";
+      case "sticker":
+        return prefix + "Sent a sticker";
+      case "image":
+        return prefix + "Sent a photo";
+      case "video":
+        return prefix + "Sent a video";
+      default:
+        return prefix + "Sent a message";
+    }
+  };
 
   const enrichedDirect = oneOnOne.map((c) => {
     const otherId = c.user_a === user.id ? c.user_b : c.user_a;
@@ -104,9 +133,7 @@ export default async function InboxPage() {
             <div className="flex-1 min-w-0">
               <div className={`text-[13.5px] truncate ${c.unread ? "font-bold" : "font-semibold"}`}>{c.groupName}</div>
               <div className={`text-xs truncate ${c.unread ? "font-bold text-ink" : "text-inksoft"}`}>
-                {c.last
-                  ? (c.last.sender_id === user.id ? "You: " : "") + (c.last.text || (c.last.media_type === "video" ? "Sent a video" : "Sent a photo"))
-                  : "Say hello"}
+                {getPreviewText(c.last, user.id)}
               </div>
             </div>
             {c.unread && <div className="w-2.5 h-2.5 rounded-full bg-amber flex-shrink-0" />}
@@ -121,9 +148,7 @@ export default async function InboxPage() {
             <div className="flex-1 min-w-0">
               <div className={`text-[13.5px] ${c.unread ? "font-bold" : "font-semibold"}`}>{c.other?.username}</div>
               <div className={`text-xs truncate ${c.unread ? "font-bold text-ink" : "text-inksoft"}`}>
-                {c.last
-                  ? (c.last.sender_id === user.id ? "You: " : "") + (c.last.text || (c.last.media_type === "video" ? "Sent a video" : "Sent a photo"))
-                  : "Say hello"}
+                {getPreviewText(c.last, user.id)}
               </div>
             </div>
             {c.unread && <div className="w-2.5 h-2.5 rounded-full bg-amber flex-shrink-0" />}
