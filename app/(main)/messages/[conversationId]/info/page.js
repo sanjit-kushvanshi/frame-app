@@ -58,6 +58,7 @@ export default async function GroupInfoPage({ params }) {
       conversationId={convo.id}
       currentUserId={user.id}
       isAdmin={isAdmin}
+      isCreator={convo.created_by === user.id}
       groupName={convo.name}
       groupAvatarUrl={convo.avatar_url}
       inviteCode={convo.invite_code}
