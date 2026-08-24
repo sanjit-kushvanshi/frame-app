@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Camera, X, Check, Pencil, ShieldCheck, Link2, Copy, Share2, Send } from "lucide-react";
+import { ChevronLeft, Camera, X, Check, Pencil, ShieldCheck, ShieldMinus, Link2, Copy, Share2, Send } from "lucide-react";
 import { compressImage } from "@/lib/mediaCompress";
 import { createClient } from "@/lib/supabase/client";
 
@@ -9,7 +9,7 @@ function generateCode() {
   return Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6);
 }
 
-export default function GroupInfo({ conversationId, currentUserId, isAdmin, groupName, groupAvatarUrl, inviteCode, participants, initialJoinRequests }) {
+export default function GroupInfo({ conversationId, currentUserId, isAdmin, isCreator, groupName, groupAvatarUrl, inviteCode, participants, initialJoinRequests }) {
   const supabase = createClient();
   const router = useRouter();
   const [avatarUrl, setAvatarUrl] = useState(groupAvatarUrl);
@@ -110,6 +110,16 @@ export default function GroupInfo({ conversationId, currentUserId, isAdmin, grou
     setMembers((prev) => prev.map((m) => (m.id === userId ? { ...m, isAdmin: true } : m)));
   };
 
+  const removeAdmin = async (userId) => {
+    if (!confirm("Remove admin status from this member?")) return;
+    const { error } = await supabase.from("conversation_participants").update({ is_admin: false }).eq("conversation_id", conversationId).eq("user_id", userId);
+    if (error) {
+      alert("Couldn't remove admin: " + error.message);
+      return;
+    }
+    setMembers((prev) => prev.map((m) => (m.id === userId ? { ...m, isAdmin: false } : m)));
+  };
+
   const generateLink = async () => {
     setGeneratingLink(true);
     const newCode = generateCode();
@@ -186,6 +196,22 @@ export default function GroupInfo({ conversationId, currentUserId, isAdmin, grou
       return;
     }
     setSentTo((prev) => [...prev, targetConversationId]);
+  };
+
+  const approveRequest = async (req) => {
+    const { error: insertError } = await supabase.from("conversation_participants").insert({ conversation_id: conversationId, user_id: req.user_id });
+    if (insertError) {
+      alert("Couldn't approve: " + insertError.message);
+      return;
+    }
+    await supabase.from("conversation_join_requests").delete().eq("id", req.id);
+    setJoinRequests((prev) => prev.filter((r) => r.id !== req.id));
+    if (req.profile) setMembers((prev) => [...prev, { ...req.profile, isAdmin: false }]);
+  };
+
+  const rejectRequest = async (req) => {
+    await supabase.from("conversation_join_requests").delete().eq("id", req.id);
+    setJoinRequests((prev) => prev.filter((r) => r.id !== req.id));
   };
 
   return (
@@ -320,6 +346,11 @@ export default function GroupInfo({ conversationId, currentUserId, isAdmin, grou
                 {!m.isAdmin && (
                   <button onClick={() => makeAdmin(m.id)} className="text-[11px] font-semibold" style={{ color: "#FF6B35" }}>
                     Make admin
+                  </button>
+                )}
+                {m.isAdmin && isCreator && (
+                  <button onClick={() => removeAdmin(m.id)} className="flex items-center gap-1 text-[11px] font-semibold text-inksoft">
+                    <ShieldMinus size={12} /> Remove admin
                   </button>
                 )}
                 <button onClick={() => removeMember(m.id)} className="text-[11.5px] text-amber font-semibold">Remove</button>
