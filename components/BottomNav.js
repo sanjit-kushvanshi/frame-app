@@ -18,8 +18,13 @@ export default function BottomNav({ myUsername }) {
       {items.map(({ href, icon: Icon, match }) => {
         const active = match(pathname);
         return (
-          <Link key={href} href={href} className="p-1.5 relative" aria-label={href}>
-            <Icon size={22} color={active ? "#FF6B35" : "#1C1A17"} strokeWidth={1.6} />
+          <Link
+            key={href}
+            href={href}
+            className={`p-1.5 relative ${active ? "text-amber" : "text-ink"}`}
+            aria-label={href}
+          >
+            <Icon size={22} strokeWidth={1.6} />
           </Link>
         );
       })}
