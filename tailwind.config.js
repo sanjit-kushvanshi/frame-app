@@ -1,16 +1,17 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: ["class", '[data-theme="dark"]'],
   content: ["./app/**/*.{js,jsx}", "./components/**/*.{js,jsx}"],
   theme: {
     extend: {
       colors: {
-        paper: "#F7F4EE",
-        paperdim: "#EFEBE1",
-        ink: "#1C1A17",
-        inksoft: "#6B6459",
-        hairline: "#DCD6C8",
-        amber: "#FF6B35",
-        ambersoft: "#FFE8DC",
+        paper: "var(--paper)",
+        paperdim: "var(--paperdim)",
+        ink: "var(--ink)",
+        inksoft: "var(--inksoft)",
+        hairline: "var(--hairline)",
+        amber: "var(--amber)",
+        ambersoft: "var(--ambersoft)",
       },
       fontFamily: {
         display: ["Fraunces", "serif"],
