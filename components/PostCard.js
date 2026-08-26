@@ -1,7 +1,7 @@
 "use client";
 import { useState, useRef } from "react";
 import Link from "next/link";
-import { Heart, MessageCircle, Bookmark, Send } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, Send, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import CommentsSheet from "@/components/CommentsSheet";
 import ShareSheet from "@/components/ShareSheet";
@@ -15,7 +15,9 @@ export default function PostCard({ post, currentUserId }) {
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [burst, setBurst] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const lastTap = useRef(0);
+  const tapTimeout = useRef(null);
 
   const isVideo = post.media_type === "video";
 
@@ -44,9 +46,14 @@ export default function PostCard({ post, currentUserId }) {
   const handleImgTap = () => {
     const now = Date.now();
     if (now - lastTap.current < 300) {
+      clearTimeout(tapTimeout.current);
       if (!liked) toggleLike();
       setBurst(true);
       setTimeout(() => setBurst(false), 700);
+    } else {
+      tapTimeout.current = setTimeout(() => {
+        setPreviewOpen(true);
+      }, 280);
     }
     lastTap.current = now;
   };
@@ -103,18 +110,18 @@ export default function PostCard({ post, currentUserId }) {
 
       <div className="flex items-center justify-between px-4 pt-2.5">
         <div className="flex gap-4">
-          <button onClick={toggleLike} aria-label="Like">
-            <Heart size={24} color={liked ? "#FF6B35" : "#1C1A17"} fill={liked ? "#FF6B35" : "none"} strokeWidth={1.6} />
+          <button onClick={toggleLike} aria-label="Like" className={liked ? "text-amber" : "text-ink"}>
+            <Heart size={24} fill={liked ? "currentColor" : "none"} strokeWidth={1.6} />
           </button>
-          <button onClick={() => setCommentsOpen(true)} aria-label="Comment">
-            <MessageCircle size={24} color="#1C1A17" strokeWidth={1.6} />
+          <button onClick={() => setCommentsOpen(true)} aria-label="Comment" className="text-ink">
+            <MessageCircle size={24} strokeWidth={1.6} />
           </button>
-          <button onClick={() => setShareOpen(true)} aria-label="Share">
-            <Send size={22} color="#1C1A17" strokeWidth={1.6} />
+          <button onClick={() => setShareOpen(true)} aria-label="Share" className="text-ink">
+            <Send size={22} strokeWidth={1.6} />
           </button>
         </div>
-        <button onClick={toggleSave} aria-label="Save">
-          <Bookmark size={22} color="#1C1A17" fill={saved ? "#1C1A17" : "none"} strokeWidth={1.6} />
+        <button onClick={toggleSave} aria-label="Save" className="text-ink">
+          <Bookmark size={22} fill={saved ? "currentColor" : "none"} strokeWidth={1.6} />
         </button>
       </div>
 
@@ -139,6 +146,27 @@ export default function PostCard({ post, currentUserId }) {
         currentUserId={currentUserId}
       />
       <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} post={post} currentUserId={currentUserId} />
+
+      {previewOpen && !isVideo && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
+          onClick={() => setPreviewOpen(false)}
+        >
+          <button
+            onClick={() => setPreviewOpen(false)}
+            aria-label="Close preview"
+            className="absolute top-4 right-4 text-white p-2"
+          >
+            <X size={26} strokeWidth={1.6} />
+          </button>
+          <img
+            src={post.image_url}
+            alt={post.caption}
+            className="max-w-full max-h-full object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }
