@@ -751,16 +751,15 @@ export default function ChatThread({
                   </div>
                 </div>
               ) : (
-                <div {...pressHandlers(m)} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
+                <div {...pressHandlers(m)} className={`flex ${isMe ? "justify-end" : "justify-start"} flex-shrink-0`}>
                   {m.media_type === "sticker" ? (
                     <div className="text-5xl leading-none px-1">{m.text}</div>
                   ) : (
                     <div
-                      className="text-[13.5px] leading-snug"
+                      className="text-[13.5px] leading-snug flex-shrink-0"
                       style={{
                         width: "fit-content",
-                        minWidth: "40px",
-                        maxWidth: "78%",
+                        maxWidth: "280px",
                         borderRadius: "20px",
                         overflow: m.media_url ? "hidden" : "visible",
                         whiteSpace: "pre-wrap",
@@ -1041,7 +1040,7 @@ export default function ChatThread({
           >
             <Clapperboard size={22} strokeWidth={1.6} color={gifPickerOpen ? "#FF6B35" : "#1C1A17"} />
           </button>
-<input ref={fileInputRef} type="file" accept="image/*,video/*" multiple onChange={handleFiles} className="hidden" />
+          <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple onChange={handleFiles} className="hidden" />
           <input
             value={text}
             onChange={(e) => setText(e.target.value)}
