@@ -4,13 +4,33 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --paper: #F7F4EE;
+  --paperdim: #EFEBE1;
+  --ink: #1C1A17;
+  --inksoft: #6B6459;
+  --hairline: #DCD6C8;
+  --amber: #FF6B35;
+  --ambersoft: #FFE8DC;
+}
+
+[data-theme="dark"] {
+  --paper: #15130F;
+  --paperdim: #1E1B15;
+  --ink: #EDE8DE;
+  --inksoft: #A39C8C;
+  --hairline: #2E2A22;
+  --amber: #FF7A47;
+  --ambersoft: #3A2A1E;
+}
+
 html, body {
-  background: #F7F4EE;
-  color: #1C1A17;
+  background: var(--paper);
+  color: var(--ink);
 }
 
 input::placeholder, textarea::placeholder {
-  color: #6B6459;
+  color: var(--inksoft);
 }
 
 @keyframes frame-heart-pop {
