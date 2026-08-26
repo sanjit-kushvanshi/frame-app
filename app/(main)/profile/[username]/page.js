@@ -4,6 +4,7 @@ import Link from "next/link";
 import FollowButton from "@/components/FollowButton";
 import MessageButton from "@/components/MessageButton";
 import ProfileTabs from "@/components/ProfileTabs";
+import ProfileSettingsMenu from "@/components/ProfileSettingsMenu";
 
 export default async function ProfilePage({ params }) {
   const supabase = createClient();
@@ -31,7 +32,13 @@ export default async function ProfilePage({ params }) {
 
   return (
     <div>
-      <div className="flex gap-5 px-4 pt-5 pb-2.5 items-center">
+      {isMe && (
+        <div className="flex justify-end px-4 pt-3">
+          <ProfileSettingsMenu />
+        </div>
+      )}
+
+      <div className="flex gap-5 px-4 pt-2 pb-2.5 items-center">
         <img
           src={profile.avatar_url || `https://picsum.photos/seed/${profile.username}/200/200`}
           alt={profile.username}
