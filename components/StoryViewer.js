@@ -26,6 +26,7 @@ export default function StoryViewer({ groups: initialGroups, startIndex, current
   const intervalRef = useRef(null);
   const viewedRef = useRef(new Set());
   const videoRef = useRef(null);
+  const progressRef = useRef(0);
 
   const group = groups?.[groupIndex];
   const story = group?.stories?.[storyIndex];
@@ -33,6 +34,7 @@ export default function StoryViewer({ groups: initialGroups, startIndex, current
 
   useEffect(() => {
     if (!story) return;
+    progressRef.current = 0;
     setProgress(0);
     setLiked(!!story.likedByMe);
     setLikeCount(story.likeCount || 0);
@@ -58,10 +60,11 @@ export default function StoryViewer({ groups: initialGroups, startIndex, current
   // Progress/advance timer for IMAGE stories only.
   useEffect(() => {
     if (!story || isVideo || paused) return;
-    const start = Date.now() - (progress / 100) * IMAGE_DURATION;
+    const start = Date.now() - (progressRef.current / 100) * IMAGE_DURATION;
     intervalRef.current = setInterval(() => {
       const elapsed = Date.now() - start;
       const pct = Math.min(100, (elapsed / IMAGE_DURATION) * 100);
+      progressRef.current = pct;
       setProgress(pct);
       if (pct >= 100) {
         clearInterval(intervalRef.current);
@@ -86,7 +89,9 @@ export default function StoryViewer({ groups: initialGroups, startIndex, current
   const handleVideoTimeUpdate = (e) => {
     const v = e.currentTarget;
     if (!v.duration) return;
-    setProgress((v.currentTime / v.duration) * 100);
+    const pct = (v.currentTime / v.duration) * 100;
+    progressRef.current = pct;
+    setProgress(pct);
   };
 
   const goNext = () => {
