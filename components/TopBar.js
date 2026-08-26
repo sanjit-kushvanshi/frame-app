@@ -107,12 +107,16 @@ export default function TopBar({ currentUserId }) {
         <button onClick={handleLogout} aria-label="Log out" className="text-ink p-1">
           <LogOut size={18} strokeWidth={1.6} />
         </button>
-        <div className="font-display italic font-semibold text-2xl">Frame</div>
+        <div className="font-display italic font-semibold text-2xl text-ink">Frame</div>
         <div className="flex items-center gap-1">
-          <Link href="/activity" aria-label="Notifications" className="text-ink p-1 relative">
-            <Heart size={20} strokeWidth={1.6} fill={pathname.startsWith("/activity") ? "#FF6B35" : "none"} color={pathname.startsWith("/activity") ? "#FF6B35" : "#1C1A17"} />
+          <Link
+            href="/activity"
+            aria-label="Notifications"
+            className={`p-1 relative ${pathname.startsWith("/activity") ? "text-amber" : "text-ink"}`}
+          >
+            <Heart size={20} strokeWidth={1.6} fill={pathname.startsWith("/activity") ? "currentColor" : "none"} />
             {notifUnreadCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 bg-amber text-white text-[9px] rounded-full min-w-[15px] h-[15px] flex items-center justify-center px-1">
+              <span className="absolute -top-0.5 -right-0.5 bg-amber text-paper text-[9px] rounded-full min-w-[15px] h-[15px] flex items-center justify-center px-1">
                 {notifUnreadCount > 9 ? "9+" : notifUnreadCount}
               </span>
             )}
@@ -120,7 +124,7 @@ export default function TopBar({ currentUserId }) {
           <Link href="/messages" aria-label="Messages" className="text-ink p-1 relative">
             <Send size={20} strokeWidth={1.6} />
             {unreadCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 bg-amber text-white text-[9px] rounded-full min-w-[15px] h-[15px] flex items-center justify-center px-1">
+              <span className="absolute -top-0.5 -right-0.5 bg-amber text-paper text-[9px] rounded-full min-w-[15px] h-[15px] flex items-center justify-center px-1">
                 {unreadCount > 9 ? "9+" : unreadCount}
               </span>
             )}
