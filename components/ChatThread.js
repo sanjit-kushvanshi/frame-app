@@ -751,7 +751,7 @@ export default function ChatThread({
                   </div>
                 </div>
               ) : (
-                <div {...pressHandlers(m)} className={`flex ${isMe ? "justify-end" : "justify-start"} flex-shrink-0`}>
+                <div {...pressHandlers(m)} onContextMenu={(e) => e.preventDefault()} className={`flex ${isMe ? "justify-end" : "justify-start"} flex-shrink-0`}>
                   {m.media_type === "sticker" ? (
                     <div className="text-5xl leading-none px-1">{m.text}</div>
                   ) : (
