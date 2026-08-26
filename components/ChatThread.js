@@ -757,10 +757,11 @@ export default function ChatThread({
                   ) : (
                     <div
                       className="text-[13.5px] leading-snug"
-                      style={{
-                        width: "fit-content",
-                        maxWidth: "78%",
-                        borderRadius: "20px",
+style={{
+  width: "fit-content",
+  minWidth: "40px",
+  maxWidth: "78%",
+  borderRadius: "20px",
                         overflow: m.media_url ? "hidden" : "visible",
                         whiteSpace: "pre-wrap",
                         wordBreak: "break-word",
