@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, SendHorizontal, ImagePlus, X, Smile, Clapperboard, CornerUpLeft, CornerUpRight, Pencil, Trash2, Heart, Mic, Square, Play, Pause, Copy } from "lucide-react";
+import { ChevronLeft, SendHorizontal, ImagePlus, X, Smile, Clapperboard, CornerUpLeft, CornerUpRight, Pencil, Trash2, Heart, Mic, Square, Play, Pause, Copy, Download } from "lucide-react";
 import { compressImage, checkVideoSize } from "@/lib/mediaCompress";
 import { createClient } from "@/lib/supabase/client";
 
@@ -621,6 +621,22 @@ export default function ChatThread({
     }
   };
 
+  const downloadImage = async () => {
+    if (!lightbox || lightbox.type !== "image") return;
+    try {
+      const response = await fetch(lightbox.url);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `frame-${Date.now()}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {}
+  };
+
   const toggleReaction = async (emoji) => {
     const messageId = actionSheetFor.id;
     setActionSheetFor(null);
@@ -882,6 +898,18 @@ export default function ChatThread({
           >
             <X size={26} />
           </button>
+          {lightbox.type === "image" && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                downloadImage();
+              }}
+              className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white z-10 bg-[rgba(0,0,0,0.5)] p-3 rounded-full"
+              aria-label="Download image"
+            >
+              <Download size={20} />
+            </button>
+          )}
           {lightbox.type === "video" ? (
             <video src={lightbox.url} controls autoPlay className="max-w-full max-h-full" onClick={(e) => e.stopPropagation()} />
           ) : (
