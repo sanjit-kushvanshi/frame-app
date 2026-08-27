@@ -1,7 +1,7 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { Heart, MessageCircle, Send, Volume2, VolumeX, Trash2 } from "lucide-react";
+import { Heart, MessageCircle, Send, Volume2, VolumeX, Trash2, Pencil, Bookmark } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import CommentsSheet from "@/components/CommentsSheet";
 import ShareSheet from "@/components/ShareSheet";
@@ -11,12 +11,18 @@ export default function ReelCard({ post, currentUserId, isActive, onDeleted }) {
   const videoRef = useRef(null);
   const [liked, setLiked] = useState(post.likedByMe);
   const [likeCount, setLikeCount] = useState(post.likeCount);
+  const [saved, setSaved] = useState(post.savedByMe);
   const [comments, setComments] = useState(post.comments);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [muted, setMuted] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  const [caption, setCaption] = useState(post.caption);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editCaption, setEditCaption] = useState(post.caption || "");
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const isMine = post.user_id === currentUserId;
 
@@ -40,6 +46,16 @@ export default function ReelCard({ post, currentUserId, isActive, onDeleted }) {
       setLiked(true);
       setLikeCount((c) => c + 1);
       await supabase.from("likes").insert({ user_id: currentUserId, post_id: post.id });
+    }
+  };
+
+  const toggleSave = async () => {
+    if (saved) {
+      setSaved(false);
+      await supabase.from("saves").delete().eq("user_id", currentUserId).eq("post_id", post.id);
+    } else {
+      setSaved(true);
+      await supabase.from("saves").insert({ user_id: currentUserId, post_id: post.id });
     }
   };
 
@@ -73,6 +89,32 @@ export default function ReelCard({ post, currentUserId, isActive, onDeleted }) {
     onDeleted?.(post.id);
   };
 
+  const startEdit = () => {
+    setEditCaption(caption || "");
+    setIsEditing(true);
+  };
+
+  const cancelEdit = () => {
+    setIsEditing(false);
+    setEditCaption(caption || "");
+  };
+
+  const saveEdit = async () => {
+    setSavingEdit(true);
+    const { error } = await supabase
+      .from("posts")
+      .update({ caption: editCaption })
+      .eq("id", post.id)
+      .eq("user_id", currentUserId);
+    setSavingEdit(false);
+    if (!error) {
+      setCaption(editCaption);
+      setIsEditing(false);
+    } else {
+      alert("Couldn't save: " + error.message);
+    }
+  };
+
   return (
     <div className="relative w-full h-full snap-start flex-shrink-0 bg-black flex items-center justify-center overflow-hidden">
       <video
@@ -87,9 +129,14 @@ export default function ReelCard({ post, currentUserId, isActive, onDeleted }) {
 
       <div className="absolute top-4 right-4 flex items-center gap-2">
         {isMine && (
-          <button onClick={() => setConfirmingDelete(true)} className="text-white bg-black/40 rounded-full p-2" aria-label="Delete reel">
-            <Trash2 size={18} />
-          </button>
+          <>
+            <button onClick={startEdit} className="text-white bg-black/40 rounded-full p-2" aria-label="Edit reel">
+              <Pencil size={18} />
+            </button>
+            <button onClick={() => setConfirmingDelete(true)} className="text-white bg-black/40 rounded-full p-2" aria-label="Delete reel">
+              <Trash2 size={18} />
+            </button>
+          </>
         )}
         <button onClick={() => setMuted((m) => !m)} className="text-white bg-black/40 rounded-full p-2">
           {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
@@ -106,7 +153,27 @@ export default function ReelCard({ post, currentUserId, isActive, onDeleted }) {
             />
             <span className="text-white text-[13px] font-semibold">{post.profiles?.username}</span>
           </Link>
-          {post.caption && <div className="text-white text-[13px] leading-snug">{post.caption}</div>}
+          {isEditing ? (
+            <div onClick={(e) => e.stopPropagation()}>
+              <textarea
+                value={editCaption}
+                onChange={(e) => setEditCaption(e.target.value)}
+                rows={2}
+                autoFocus
+                className="w-full bg-black/40 border border-white/30 rounded-lg px-2.5 py-2 text-[13px] text-white resize-none focus:outline-none"
+              />
+              <div className="flex gap-3 pt-1.5">
+                <button onClick={saveEdit} disabled={savingEdit} className="font-mono text-[11.5px] text-amber font-semibold disabled:opacity-50">
+                  {savingEdit ? "Saving…" : "Save"}
+                </button>
+                <button onClick={cancelEdit} className="font-mono text-[11.5px] text-white/70">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            caption && <div className="text-white text-[13px] leading-snug">{caption}</div>
+          )}
         </div>
 
         <div className="flex flex-col items-center gap-4 pl-3 flex-shrink-0">
@@ -120,6 +187,9 @@ export default function ReelCard({ post, currentUserId, isActive, onDeleted }) {
           </button>
           <button onClick={() => setShareOpen(true)} className="flex flex-col items-center gap-1">
             <Send size={24} color="#fff" strokeWidth={1.6} />
+          </button>
+          <button onClick={toggleSave} aria-label="Save" className="flex flex-col items-center gap-1">
+            <Bookmark size={24} color="#fff" fill={saved ? "#fff" : "none"} strokeWidth={1.6} />
           </button>
         </div>
       </div>
