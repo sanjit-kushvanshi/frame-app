@@ -17,14 +17,12 @@ export default function SearchPage() {
       const { data: { user } } = await supabase.auth.getUser();
       const { data: following } = await supabase.from("follows").select("following_id").eq("follower_id", user.id);
       const excludeIds = [user.id, ...(following || []).map((f) => f.following_id)];
-
       const { data: posts } = await supabase
         .from("posts")
         .select("id, image_url, is_reel, user_id")
         .not("user_id", "in", `(${excludeIds.join(",")})`)
         .order("created_at", { ascending: false })
         .limit(60);
-
       setExplorePosts(posts || []);
       setExploreLoading(false);
     })();
@@ -88,17 +86,35 @@ export default function SearchPage() {
             </div>
           )}
           {explorePosts.length > 0 && (
-            <div className="grid grid-cols-3 gap-0.5 p-0.5">
-              {explorePosts.map((p) => (
-                <Link key={p.id} href={`/post/${p.id}`} className="aspect-square overflow-hidden block relative bg-ink">
+            <div className="grid grid-cols-3 gap-[2px] p-[2px] bg-hairline">
+              {explorePosts.map((p, i) => (
+                <Link
+                  key={p.id}
+                  href={`/post/${p.id}`}
+                  className="aspect-square overflow-hidden block relative bg-ink"
+                >
                   {p.is_reel ? (
                     <>
                       <video src={p.image_url} className="w-full h-full object-cover block" />
-                      <Clapperboard size={14} className="absolute top-1.5 right-1.5 text-white" style={{ filter: "drop-shadow(0 0 2px rgba(0,0,0,0.6))" }} />
+                      <Clapperboard
+                        size={14}
+                        className="absolute top-1.5 right-1.5 text-white"
+                        style={{ filter: "drop-shadow(0 0 2px rgba(0,0,0,0.6))" }}
+                      />
                     </>
                   ) : (
                     <img src={p.image_url} alt="" className="w-full h-full object-cover block" />
                   )}
+                  <span
+                    className="absolute bottom-1 left-1 text-[9px] px-1 py-[1px] rounded-sm"
+                    style={{
+                      fontFamily: "var(--font-mono, monospace)",
+                      color: "#FF6B35",
+                      background: "rgba(28,26,23,0.55)",
+                    }}
+                  >
+                    No.{String(i + 1).padStart(3, "0")}
+                  </span>
                 </Link>
               ))}
             </div>
