@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { Search as SearchIcon, Clapperboard } from "lucide-react";
+import { Search as SearchIcon, Clapperboard, Users, ChevronRight } from "lucide-react";
 
 export default function SearchPage() {
   const supabase = createClient();
@@ -48,7 +48,7 @@ export default function SearchPage() {
 
   return (
     <div>
-      <div className="p-4">
+      <div className="p-4 space-y-3">
         <div className="flex items-center gap-2 border border-hairline rounded-lg px-3 py-2.5 bg-white">
           <SearchIcon size={16} color="#6B6459" />
           <input
@@ -58,6 +58,24 @@ export default function SearchPage() {
             className="flex-1 outline-none text-sm bg-transparent"
           />
         </div>
+
+        {!query.trim() && (
+          <Link
+            href="/communities"
+            className="flex items-center justify-between border border-hairline rounded-lg px-3 py-2.5 bg-white"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-[#FF6B35]/10 flex items-center justify-center">
+                <Users size={16} color="#FF6B35" />
+              </div>
+              <div>
+                <div className="font-semibold text-[13.5px] text-ink">Communities</div>
+                <div className="text-inksoft text-xs">Find and join spaces</div>
+              </div>
+            </div>
+            <ChevronRight size={16} color="#6B6459" />
+          </Link>
+        )}
       </div>
 
       {query.trim() ? (
