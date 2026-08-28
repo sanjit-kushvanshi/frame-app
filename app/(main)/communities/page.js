@@ -1,9 +1,10 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { supabase } from "@/lib/supabaseClient";
+import { createClient } from "@/lib/supabase/client";
 
 export default function CommunitiesPage() {
+  const supabase = createClient();
   const [communities, setCommunities] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
