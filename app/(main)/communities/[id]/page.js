@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { ChevronLeft, Send, Check, X } from "lucide-react";
+import { ChevronLeft, Send, Check, X, MoreVertical, Trash2 } from "lucide-react";
 
 export default function CommunityPage() {
   const supabase = createClient();
@@ -19,6 +19,9 @@ export default function CommunityPage() {
   const [newMessage, setNewMessage] = useState("");
   const [pendingRequests, setPendingRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const scrollRef = useRef(null);
 
   useEffect(() => {
@@ -147,6 +150,17 @@ export default function CommunityPage() {
     });
   };
 
+  const handleDeleteCommunity = async () => {
+    setDeleting(true);
+    const { error } = await supabase.from("communities").delete().eq("id", id);
+    if (error) {
+      console.error(error);
+      setDeleting(false);
+      return;
+    }
+    router.push("/communities");
+  };
+
   if (loading) {
     return <p className="text-center text-sm font-mono text-[#1C1A17]/40 mt-10">Loading...</p>;
   }
@@ -156,15 +170,67 @@ export default function CommunityPage() {
   }
 
   const isAdmin = membership && ["admin", "creator"].includes(membership.role);
+  const isCreator = membership && membership.role === "creator";
 
   return (
     <div className="min-h-screen bg-[#F7F4EE] pb-24">
-      <div className="sticky top-0 bg-[#F7F4EE] border-b border-[#DCD6C8] px-4 py-3 flex items-center gap-3 z-10">
-        <button onClick={() => router.back()}>
-          <ChevronLeft size={20} color="#1C1A17" />
-        </button>
-        <h1 className="font-['Fraunces'] italic text-lg text-[#1C1A17] truncate">{community.name}</h1>
+      <div className="sticky top-0 bg-[#F7F4EE] border-b border-[#DCD6C8] px-4 py-3 flex items-center justify-between gap-3 z-10">
+        <div className="flex items-center gap-3 min-w-0">
+          <button onClick={() => router.back()}>
+            <ChevronLeft size={20} color="#1C1A17" />
+          </button>
+          <h1 className="font-['Fraunces'] italic text-lg text-[#1C1A17] truncate">{community.name}</h1>
+        </div>
+
+        {isCreator && (
+          <div className="relative flex-shrink-0">
+            <button onClick={() => setMenuOpen((v) => !v)}>
+              <MoreVertical size={20} color="#1C1A17" />
+            </button>
+            {menuOpen && (
+              <div className="absolute right-0 top-8 bg-white border border-[#DCD6C8] rounded-lg shadow-md overflow-hidden z-20 w-44">
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setConfirmingDelete(true);
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-mono text-red-600"
+                >
+                  <Trash2 size={15} />
+                  Delete Community
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
+      {confirmingDelete && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-6">
+          <div className="bg-[#F7F4EE] rounded-xl p-5 w-full max-w-sm">
+            <h2 className="font-['Fraunces'] text-lg text-[#1C1A17] mb-2">Delete this community?</h2>
+            <p className="text-sm font-mono text-[#1C1A17]/60 mb-4">
+              This permanently deletes {community.name}, all its posts, members, and chat messages. This can't be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmingDelete(false)}
+                disabled={deleting}
+                className="flex-1 text-sm font-mono font-semibold text-[#1C1A17] border border-[#DCD6C8] rounded-full py-2"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteCommunity}
+                disabled={deleting}
+                className="flex-1 text-sm font-mono font-semibold text-white bg-red-600 rounded-full py-2 disabled:opacity-50"
+              >
+                {deleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="relative">
         <div className="h-28 bg-[#DCD6C8]">
