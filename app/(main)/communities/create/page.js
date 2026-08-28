@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 export default function CreateCommunityPage() {
+  const supabase = createClient();
   const router = useRouter();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
