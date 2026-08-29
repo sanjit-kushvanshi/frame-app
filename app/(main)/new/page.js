@@ -1,7 +1,7 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { X, Upload } from "lucide-react";
+import { X, Upload, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { compressForUpload } from "@/lib/mediaCompress";
 
@@ -18,6 +18,21 @@ export default function NewPostPage() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [processing, setProcessing] = useState(false);
+  const [myCommunities, setMyCommunities] = useState([]);
+  const [communityId, setCommunityId] = useState("");
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from("community_members")
+        .select("communities(id, name)")
+        .eq("user_id", user.id);
+      setMyCommunities((data || []).map((r) => r.communities).filter(Boolean));
+    })();
+  }, [supabase]);
 
   const handleFile = async (e) => {
     const f = e.target.files?.[0];
@@ -64,10 +79,17 @@ export default function NewPostPage() {
         location: location || null,
         media_type: fileType,
         is_reel: fileType === "video" && postAsReel,
+        community_id: communityId || null,
       });
       if (insertError) throw insertError;
 
-      router.push(fileType === "video" && postAsReel ? "/reels" : "/");
+      router.push(
+        communityId
+          ? `/communities/${communityId}`
+          : fileType === "video" && postAsReel
+          ? "/reels"
+          : "/"
+      );
       router.refresh();
     } catch (err) {
       setError(err.message || "Something went wrong publishing this frame.");
@@ -75,6 +97,8 @@ export default function NewPostPage() {
       setUploading(false);
     }
   };
+
+  const selectedCommunityName = myCommunities.find((c) => c.id === communityId)?.name;
 
   return (
     <div className="flex flex-col">
@@ -134,6 +158,45 @@ export default function NewPostPage() {
           placeholder="Add location"
           className="w-full mt-2.5 border border-hairline rounded-lg px-3 py-2.5 font-mono text-[13px] bg-white outline-none"
         />
+
+        {myCommunities.length > 0 && (
+          <div className="relative mt-2.5">
+            <button
+              onClick={() => setPickerOpen((v) => !v)}
+              className="w-full flex items-center justify-between border border-hairline rounded-lg px-3 py-2.5 font-mono text-[13px] bg-white"
+            >
+              <span className={selectedCommunityName ? "text-ink" : "text-inksoft"}>
+                {selectedCommunityName || "Post to your profile only"}
+              </span>
+              <ChevronDown size={15} className="text-inksoft" />
+            </button>
+            {pickerOpen && (
+              <div className="absolute left-0 right-0 top-full mt-1 border border-hairline rounded-lg bg-white shadow-md z-10 max-h-52 overflow-y-auto">
+                <button
+                  onClick={() => {
+                    setCommunityId("");
+                    setPickerOpen(false);
+                  }}
+                  className="w-full text-left px-3 py-2.5 font-mono text-[13px] text-inksoft border-b border-hairline"
+                >
+                  Post to your profile only
+                </button>
+                {myCommunities.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => {
+                      setCommunityId(c.id);
+                      setPickerOpen(false);
+                    }}
+                    className="w-full text-left px-3 py-2.5 font-mono text-[13px] text-ink border-b border-hairline last:border-b-0"
+                  >
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
