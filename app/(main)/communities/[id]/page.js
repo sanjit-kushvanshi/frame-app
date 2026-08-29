@@ -179,7 +179,7 @@ export default function CommunityPage() {
           <button onClick={() => router.back()}>
             <ChevronLeft size={20} color="#1C1A17" />
           </button>
-          <h1 className="font-['Fraunces'] italic text-lg text-[#1C1A17] truncate">{community.name}</h1>
+          <Link href={`/communities/${id}/members`} className="font-['Fraunces'] italic text-lg text-[#1C1A17] truncate">{community.name}</Link>
         </div>
 
         {isCreator && (
