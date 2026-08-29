@@ -28,8 +28,9 @@ export default function NewPostPage() {
       if (!user) return;
       const { data } = await supabase
         .from("community_members")
-        .select("communities(id, name)")
-        .eq("user_id", user.id);
+        .select("role, communities(id, name)")
+        .eq("user_id", user.id)
+        .in("role", ["admin", "creator"]);
       setMyCommunities((data || []).map((r) => r.communities).filter(Boolean));
     })();
   }, [supabase]);
