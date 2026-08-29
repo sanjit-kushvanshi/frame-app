@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, ShieldCheck, ShieldOff, UserMinus } from "lucide-react";
 
 export default function CommunityMembersPage() {
   const supabase = createClient();
@@ -13,6 +13,8 @@ export default function CommunityMembersPage() {
   const [loading, setLoading] = useState(true);
   const [leaving, setLeaving] = useState(false);
   const [confirmingLeave, setConfirmingLeave] = useState(false);
+  const [confirmingRemoveId, setConfirmingRemoveId] = useState(null);
+  const [actionLoadingId, setActionLoadingId] = useState(null);
   const [userId, setUserId] = useState(null);
 
   useEffect(() => {
@@ -56,8 +58,36 @@ export default function CommunityMembersPage() {
     router.push("/communities");
   };
 
+  const handlePromote = async (memberRowId) => {
+    setActionLoadingId(memberRowId);
+    const { error } = await supabase.from("community_members").update({ role: "admin" }).eq("id", memberRowId);
+    if (error) alert(error.message);
+    else load();
+    setActionLoadingId(null);
+  };
+
+  const handleDemote = async (memberRowId) => {
+    setActionLoadingId(memberRowId);
+    const { error } = await supabase.from("community_members").update({ role: "member" }).eq("id", memberRowId);
+    if (error) alert(error.message);
+    else load();
+    setActionLoadingId(null);
+  };
+
+  const handleRemove = async (memberRowId) => {
+    setActionLoadingId(memberRowId);
+    const { error } = await supabase.from("community_members").delete().eq("id", memberRowId);
+    if (error) alert(error.message);
+    else load();
+    setActionLoadingId(null);
+    setConfirmingRemoveId(null);
+  };
+
   const roleLabel = (role) =>
     role === "creator" ? "Creator" : role === "admin" ? "Admin" : null;
+
+  const myRole = members.find((m) => m.user_id === userId)?.role;
+  const isCreator = myRole === "creator";
 
   return (
     <div className="min-h-screen bg-[#F7F4EE] pb-24">
@@ -73,19 +103,68 @@ export default function CommunityMembersPage() {
       ) : (
         <div className="divide-y divide-[#DCD6C8]">
           {members.map((m) => (
-            <div key={m.id} className="flex items-center gap-3 px-4 py-3">
-              <Link href={`/profile/${m.profile?.username}`} className="flex items-center gap-3 flex-1 min-w-0">
-                <img
-                  src={m.profile?.avatar_url || `https://picsum.photos/seed/${m.user_id}/100`}
-                  className="w-10 h-10 rounded-full object-cover flex-shrink-0"
-                  alt=""
-                />
-                <p className="text-sm font-mono text-[#1C1A17] truncate">{m.profile?.username}</p>
-              </Link>
-              {roleLabel(m.role) && (
-                <span className="text-[10px] font-mono font-semibold text-[#FF6B35] border border-[#FF6B35] rounded-full px-2 py-0.5 flex-shrink-0">
-                  {roleLabel(m.role)}
-                </span>
+            <div key={m.id} className="px-4 py-3">
+              <div className="flex items-center gap-3">
+                <Link href={`/profile/${m.profile?.username}`} className="flex items-center gap-3 flex-1 min-w-0">
+                  <img
+                    src={m.profile?.avatar_url || `https://picsum.photos/seed/${m.user_id}/100`}
+                    className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                    alt=""
+                  />
+                  <p className="text-sm font-mono text-[#1C1A17] truncate">{m.profile?.username}</p>
+                </Link>
+                {roleLabel(m.role) && (
+                  <span className="text-[10px] font-mono font-semibold text-[#FF6B35] border border-[#FF6B35] rounded-full px-2 py-0.5 flex-shrink-0">
+                    {roleLabel(m.role)}
+                  </span>
+                )}
+              </div>
+
+              {isCreator && m.role !== "creator" && (
+                <div className="flex gap-2 mt-2 pl-[52px]">
+                  {m.role === "member" ? (
+                    <button
+                      onClick={() => handlePromote(m.id)}
+                      disabled={actionLoadingId === m.id}
+                      className="flex items-center gap-1 text-[11px] font-mono font-semibold text-[#1C1A17]/70 border border-[#DCD6C8] rounded-full px-2.5 py-1"
+                    >
+                      <ShieldCheck size={12} /> Make Admin
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleDemote(m.id)}
+                      disabled={actionLoadingId === m.id}
+                      className="flex items-center gap-1 text-[11px] font-mono font-semibold text-[#1C1A17]/70 border border-[#DCD6C8] rounded-full px-2.5 py-1"
+                    >
+                      <ShieldOff size={12} /> Remove Admin
+                    </button>
+                  )}
+
+                  {confirmingRemoveId === m.id ? (
+                    <>
+                      <button
+                        onClick={() => handleRemove(m.id)}
+                        disabled={actionLoadingId === m.id}
+                        className="text-[11px] font-mono font-semibold text-white bg-red-600 rounded-full px-2.5 py-1"
+                      >
+                        Confirm remove
+                      </button>
+                      <button
+                        onClick={() => setConfirmingRemoveId(null)}
+                        className="text-[11px] font-mono font-semibold text-[#1C1A17]/50 px-1"
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmingRemoveId(m.id)}
+                      className="flex items-center gap-1 text-[11px] font-mono font-semibold text-red-600 border border-red-200 rounded-full px-2.5 py-1"
+                    >
+                      <UserMinus size={12} /> Remove
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           ))}
