@@ -170,7 +170,7 @@ export default function CommunityPage() {
       </div>
 
       {tab === "feed" && (
-        <div>
+        <div className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 260px)" }}>
           {isAdmin && pendingRequests.length > 0 && (
             <div className="px-4 py-3 border-b border-[#DCD6C8] bg-white">
               <p className="text-xs font-mono font-semibold text-[#1C1A17]/60 mb-2">Chat requests ({pendingRequests.length})</p>
