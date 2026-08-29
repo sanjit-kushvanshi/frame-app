@@ -73,6 +73,7 @@ export default function ProfileTabs({ allItems, reels, isMe, profileUserId }) {
       const total = ordered.length;
       const enriched = ordered.map((p, i) => ({
         ...p,
+        media_type: p.is_reel ? "video" : "image",
         likeCount: (likes || []).filter((l) => l.post_id === p.id).length,
         likedByMe: (likes || []).some((l) => l.post_id === p.id && l.user_id === currentUserId),
         savedByMe: (saves || []).some((s) => s.post_id === p.id),
