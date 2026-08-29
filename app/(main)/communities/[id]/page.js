@@ -18,6 +18,7 @@ export default function CommunityPage() {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [pendingRequests, setPendingRequests] = useState([]);
+  const [profilesMap, setProfilesMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -37,13 +38,14 @@ export default function CommunityPage() {
           "postgres_changes",
           { event: "INSERT", schema: "public", table: "community_messages", filter: `community_id=eq.${id}` },
           (payload) => {
+            if (payload.new.user_id === userId) return; // already added optimistically
             setMessages((prev) => [...prev, payload.new]);
           }
         )
         .subscribe();
       return () => supabase.removeChannel(channel);
     }
-  }, [tab, membership]);
+  }, [tab, membership, userId]);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -61,6 +63,7 @@ export default function CommunityPage() {
       .single();
     setCommunity(communityData);
 
+    let currentMembership = null;
     if (user) {
       const { data: memberRow } = await supabase
         .from("community_members")
@@ -69,10 +72,34 @@ export default function CommunityPage() {
         .eq("user_id", user.id)
         .maybeSingle();
       setMembership(memberRow);
+      currentMembership = memberRow;
+    }
 
-      if (memberRow && ["admin", "creator"].includes(memberRow.role)) {
-        fetchPendingRequests();
-      }
+    // Fetch all members' user_ids, then fetch their profiles separately
+    // (community_members.user_id -> auth.users, not directly to profiles)
+    const { data: allMembers } = await supabase
+      .from("community_members")
+      .select("id, user_id, chat_status")
+      .eq("community_id", id);
+
+    const userIds = [...new Set((allMembers || []).map((m) => m.user_id))];
+    let map = {};
+    if (userIds.length > 0) {
+      const { data: profilesData } = await supabase
+        .from("profiles")
+        .select("id, username, avatar_url")
+        .in("id", userIds);
+      (profilesData || []).forEach((p) => {
+        map[p.id] = p;
+      });
+    }
+    setProfilesMap(map);
+
+    if (currentMembership && ["admin", "creator"].includes(currentMembership.role)) {
+      const pending = (allMembers || [])
+        .filter((m) => m.chat_status === "pending")
+        .map((m) => ({ ...m, profile: map[m.user_id] }));
+      setPendingRequests(pending);
     }
 
     const { data: postsData } = await supabase
@@ -85,19 +112,10 @@ export default function CommunityPage() {
     setLoading(false);
   };
 
-  const fetchPendingRequests = async () => {
-    const { data } = await supabase
-      .from("community_members")
-      .select("id, user_id, chat_status, profiles!user_id(username, avatar_url)")
-      .eq("community_id", id)
-      .eq("chat_status", "pending");
-    setPendingRequests(data || []);
-  };
-
   const fetchMessages = async () => {
     const { data } = await supabase
       .from("community_messages")
-      .select("id, user_id, content, created_at, profiles!user_id(username, avatar_url)")
+      .select("id, user_id, content, created_at")
       .eq("community_id", id)
       .order("created_at", { ascending: true })
       .limit(200);
@@ -128,7 +146,7 @@ export default function CommunityPage() {
       .from("community_members")
       .update({ chat_status: "approved" })
       .eq("id", memberRowId);
-    fetchPendingRequests();
+    load();
   };
 
   const handleReject = async (memberRowId) => {
@@ -136,18 +154,31 @@ export default function CommunityPage() {
       .from("community_members")
       .update({ chat_status: "rejected" })
       .eq("id", memberRowId);
-    fetchPendingRequests();
+    load();
   };
 
   const sendMessage = async () => {
     if (!newMessage.trim()) return;
     const content = newMessage.trim();
     setNewMessage("");
-    await supabase.from("community_messages").insert({
+
+    // Optimistic append so it shows immediately for the sender
+    const optimisticMsg = {
+      id: `temp-${Date.now()}`,
+      user_id: userId,
+      content,
+      created_at: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, optimisticMsg]);
+
+    const { error } = await supabase.from("community_messages").insert({
       community_id: id,
       user_id: userId,
       content,
     });
+    if (error) {
+      console.error(error);
+    }
   };
 
   const handleDeleteCommunity = async () => {
@@ -179,7 +210,9 @@ export default function CommunityPage() {
           <button onClick={() => router.back()}>
             <ChevronLeft size={20} color="#1C1A17" />
           </button>
-          <Link href={`/communities/${id}/members`} className="font-['Fraunces'] italic text-lg text-[#1C1A17] truncate">{community.name}</Link>
+          <Link href={`/communities/${id}/members`} className="font-['Fraunces'] italic text-lg text-[#1C1A17] truncate">
+            {community.name}
+          </Link>
         </div>
 
         {isCreator && (
@@ -285,11 +318,11 @@ export default function CommunityPage() {
                 <div key={r.id} className="flex items-center justify-between py-1.5">
                   <div className="flex items-center gap-2">
                     <img
-                      src={r.profiles?.avatar_url || `https://picsum.photos/seed/${r.user_id}/100`}
+                      src={r.profile?.avatar_url || `https://picsum.photos/seed/${r.user_id}/100`}
                       className="w-8 h-8 rounded-full object-cover"
                       alt=""
                     />
-                    <span className="text-sm font-mono text-[#1C1A17]">{r.profiles?.username}</span>
+                    <span className="text-sm font-mono text-[#1C1A17]">{r.profile?.username}</span>
                   </div>
                   <div className="flex gap-2">
                     <button onClick={() => handleApprove(r.id)} className="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center">
@@ -337,7 +370,9 @@ export default function CommunityPage() {
                   <div key={m.id} className={`flex ${m.user_id === userId ? "justify-end" : "justify-start"}`}>
                     <div className={`max-w-[75%] rounded-2xl px-3 py-2 ${m.user_id === userId ? "bg-[#FF6B35] text-white" : "bg-white text-[#1C1A17]"}`}>
                       {m.user_id !== userId && (
-                        <p className="text-[10px] font-mono opacity-60 mb-0.5">{m.profiles?.username}</p>
+                        <p className="text-[10px] font-mono opacity-60 mb-0.5">
+                          {profilesMap[m.user_id]?.username || "..."}
+                        </p>
                       )}
                       <p className="text-sm">{m.content}</p>
                     </div>
