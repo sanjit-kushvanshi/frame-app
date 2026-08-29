@@ -112,26 +112,27 @@ export default function CommunityPage() {
       <div className="sticky top-0 bg-[#F7F4EE] border-b border-[#DCD6C8] px-4 py-3 flex items-center justify-between gap-3 z-10">
         <div className="flex items-center gap-3 min-w-0">
           <button onClick={() => router.back()}><ChevronLeft size={20} color="#1C1A17" /></button>
-          <Link href={`/communities/${id}/members`} className="font-['Fraunces'] italic text-lg text-[#1C1A17] truncate">
+          <span className="font-['Fraunces'] italic text-lg text-[#1C1A17] truncate">
             {community.name}
-          </Link>
+          </span>
         </div>
         <div className="flex items-center gap-3 flex-shrink-0">
           <Link href={`/communities/${id}/members`} className="text-xs font-mono font-semibold text-[#1C1A17]/60">
             Members
           </Link>
           {isCreator && (
-          <div className="relative">
-            <button onClick={() => setMenuOpen((v) => !v)}><MoreVertical size={20} color="#1C1A17" /></button>
-            {menuOpen && (
-              <div className="absolute right-0 top-8 bg-white border border-[#DCD6C8] rounded-lg shadow-md overflow-hidden z-20 w-44">
-                <button onClick={() => { setMenuOpen(false); setConfirmingDelete(true); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-mono text-red-600">
-                  <Trash2 size={15} /> Delete Community
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+            <div className="relative">
+              <button onClick={() => setMenuOpen((v) => !v)}><MoreVertical size={20} color="#1C1A17" /></button>
+              {menuOpen && (
+                <div className="absolute right-0 top-8 bg-white border border-[#DCD6C8] rounded-lg shadow-md overflow-hidden z-20 w-44">
+                  <button onClick={() => { setMenuOpen(false); setConfirmingDelete(true); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-mono text-red-600">
+                    <Trash2 size={15} /> Delete Community
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {confirmingDelete && (
