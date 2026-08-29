@@ -3,8 +3,9 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { ChevronLeft, Check, X, MoreVertical, Trash2 } from "lucide-react";
+import { ChevronLeft, Check, X, MoreVertical, Trash2, LayoutGrid, Rows3 } from "lucide-react";
 import CommunityChat from "@/components/CommunityChat";
+import PostCard from "@/components/PostCard";
 
 export default function CommunityPage() {
   const supabase = createClient();
@@ -15,7 +16,9 @@ export default function CommunityPage() {
   const [membership, setMembership] = useState(null);
   const [userId, setUserId] = useState(null);
   const [tab, setTab] = useState("feed");
-  const [posts, setPosts] = useState([]);
+  const [feedView, setFeedView] = useState("grid");
+  const [rawPosts, setRawPosts] = useState([]);
+  const [feedPosts, setFeedPosts] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
   const [profilesMap, setProfilesMap] = useState({});
   const [loading, setLoading] = useState(true);
@@ -30,6 +33,7 @@ export default function CommunityPage() {
   const load = async () => {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
+    const currentUserId = user?.id || null;
     if (user) setUserId(user.id);
 
     const { data: communityData } = await supabase.from("communities").select("*").eq("id", id).single();
@@ -64,12 +68,36 @@ export default function CommunityPage() {
       setPendingRequests((allMembers || []).filter((m) => m.chat_status === "pending").map((m) => ({ ...m, profile: map[m.user_id] })));
     }
 
+    // Full post shape, same fields the main feed uses, so PostCard renders identically
     const { data: postsData } = await supabase
       .from("posts")
-      .select("id, image_url, is_reel")
+      .select("id, image_url, caption, location, created_at, user_id, is_reel, profiles!user_id(username, avatar_url)")
       .eq("community_id", id)
       .order("created_at", { ascending: false });
-    setPosts(postsData || []);
+
+    setRawPosts(postsData || []);
+
+    const postIds = (postsData || []).map((p) => p.id);
+    const [{ data: likes }, { data: saves }, { data: comments }] = await Promise.all([
+      postIds.length ? supabase.from("likes").select("post_id, user_id").in("post_id", postIds) : { data: [] },
+      postIds.length && currentUserId
+        ? supabase.from("saves").select("post_id, user_id").eq("user_id", currentUserId).in("post_id", postIds)
+        : { data: [] },
+      postIds.length
+        ? supabase.from("comments").select("id, post_id, text, user_id, parent_id, profiles!user_id(username)").in("post_id", postIds)
+        : { data: [] },
+    ]);
+
+    const total = (postsData || []).length;
+    const enriched = (postsData || []).map((p, i) => ({
+      ...p,
+      likeCount: (likes || []).filter((l) => l.post_id === p.id).length,
+      likedByMe: (likes || []).some((l) => l.post_id === p.id && l.user_id === currentUserId),
+      savedByMe: (saves || []).some((s) => s.post_id === p.id),
+      comments: (comments || []).filter((c) => c.post_id === p.id),
+      frame_no: total - i,
+    }));
+    setFeedPosts(enriched);
 
     setLoading(false);
   };
@@ -170,7 +198,7 @@ export default function CommunityPage() {
       </div>
 
       {tab === "feed" && (
-        <div className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 260px)" }}>
+        <div>
           {isAdmin && pendingRequests.length > 0 && (
             <div className="px-4 py-3 border-b border-[#DCD6C8] bg-white">
               <p className="text-xs font-mono font-semibold text-[#1C1A17]/60 mb-2">Chat requests ({pendingRequests.length})</p>
@@ -188,14 +216,38 @@ export default function CommunityPage() {
               ))}
             </div>
           )}
-          {posts.length === 0 ? (
+
+          <div className="flex justify-end gap-1 px-4 py-2 border-b border-[#DCD6C8]">
+            <button
+              onClick={() => setFeedView("grid")}
+              className="p-1.5 rounded"
+              style={{ background: feedView === "grid" ? "#FF6B35" : "transparent" }}
+            >
+              <LayoutGrid size={16} color={feedView === "grid" ? "#fff" : "#1C1A17"} />
+            </button>
+            <button
+              onClick={() => setFeedView("posts")}
+              className="p-1.5 rounded"
+              style={{ background: feedView === "posts" ? "#FF6B35" : "transparent" }}
+            >
+              <Rows3 size={16} color={feedView === "posts" ? "#fff" : "#1C1A17"} />
+            </button>
+          </div>
+
+          {rawPosts.length === 0 ? (
             <p className="text-center text-sm font-mono text-[#1C1A17]/40 mt-10">No posts yet in this community.</p>
-          ) : (
-            <div className="grid grid-cols-3 gap-0.5 p-0.5">
-              {posts.map((p) => (
+          ) : feedView === "grid" ? (
+            <div className="overflow-y-auto grid grid-cols-3 gap-0.5 p-0.5" style={{ maxHeight: "calc(100vh - 300px)" }}>
+              {rawPosts.map((p) => (
                 <Link key={p.id} href={`/post/${p.id}`} className="aspect-square overflow-hidden block bg-black">
                   {p.is_reel ? <video src={p.image_url} className="w-full h-full object-cover" /> : <img src={p.image_url} alt="" className="w-full h-full object-cover" />}
                 </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 300px)" }}>
+              {feedPosts.map((post) => (
+                <PostCard key={post.id} post={post} currentUserId={userId} />
               ))}
             </div>
           )}
