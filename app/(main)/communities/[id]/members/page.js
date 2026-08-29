@@ -24,13 +24,24 @@ export default function CommunityMembersPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) setUserId(user.id);
 
-    const { data } = await supabase
+    const { data: memberRows } = await supabase
       .from("community_members")
-      .select("id, user_id, role, joined_at, profiles!user_id(username, avatar_url)")
+      .select("id, user_id, role, joined_at")
       .eq("community_id", id)
       .order("role", { ascending: true })
       .order("joined_at", { ascending: true });
-    setMembers(data || []);
+
+    const userIds = [...new Set((memberRows || []).map((m) => m.user_id))];
+    let profilesMap = {};
+    if (userIds.length > 0) {
+      const { data: profilesData } = await supabase
+        .from("profiles")
+        .select("id, username, avatar_url")
+        .in("id", userIds);
+      (profilesData || []).forEach((p) => { profilesMap[p.id] = p; });
+    }
+
+    setMembers((memberRows || []).map((m) => ({ ...m, profile: profilesMap[m.user_id] })));
     setLoading(false);
   };
 
@@ -63,13 +74,13 @@ export default function CommunityMembersPage() {
         <div className="divide-y divide-[#DCD6C8]">
           {members.map((m) => (
             <div key={m.id} className="flex items-center gap-3 px-4 py-3">
-              <Link href={`/profile/${m.profiles?.username}`} className="flex items-center gap-3 flex-1 min-w-0">
+              <Link href={`/profile/${m.profile?.username}`} className="flex items-center gap-3 flex-1 min-w-0">
                 <img
-                  src={m.profiles?.avatar_url || `https://picsum.photos/seed/${m.user_id}/100`}
+                  src={m.profile?.avatar_url || `https://picsum.photos/seed/${m.user_id}/100`}
                   className="w-10 h-10 rounded-full object-cover flex-shrink-0"
                   alt=""
                 />
-                <p className="text-sm font-mono text-[#1C1A17] truncate">{m.profiles?.username}</p>
+                <p className="text-sm font-mono text-[#1C1A17] truncate">{m.profile?.username}</p>
               </Link>
               {roleLabel(m.role) && (
                 <span className="text-[10px] font-mono font-semibold text-[#FF6B35] border border-[#FF6B35] rounded-full px-2 py-0.5 flex-shrink-0">
