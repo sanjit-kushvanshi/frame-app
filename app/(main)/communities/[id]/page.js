@@ -116,8 +116,12 @@ export default function CommunityPage() {
             {community.name}
           </Link>
         </div>
-        {isCreator && (
-          <div className="relative flex-shrink-0">
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <Link href={`/communities/${id}/members`} className="text-xs font-mono font-semibold text-[#1C1A17]/60">
+            Members
+          </Link>
+          {isCreator && (
+          <div className="relative">
             <button onClick={() => setMenuOpen((v) => !v)}><MoreVertical size={20} color="#1C1A17" /></button>
             {menuOpen && (
               <div className="absolute right-0 top-8 bg-white border border-[#DCD6C8] rounded-lg shadow-md overflow-hidden z-20 w-44">
