@@ -18,7 +18,7 @@ export default async function SinglePostPage({ params }) {
   const [{ data: likes }, { data: saves }, { data: comments }] = await Promise.all([
     supabase.from("likes").select("post_id, user_id").eq("post_id", post.id),
     supabase.from("saves").select("post_id, user_id").eq("user_id", user.id).eq("post_id", post.id),
-    supabase.from("comments").select("id, post_id, text, user_id, profiles!user_id(username)").eq("post_id", post.id),
+    supabase.from("comments").select("id, post_id, text, user_id, profiles!user_id(username, avatar_url)").eq("post_id", post.id),
   ]);
 
   const enriched = {
