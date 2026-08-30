@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { ChevronLeft, Check, X, MoreVertical, Trash2, LayoutGrid, Rows3 } from "lucide-react";
+import { ChevronLeft, Check, X, MoreVertical, Trash2, LayoutGrid, Rows3, Pencil } from "lucide-react";
 import CommunityChat from "@/components/CommunityChat";
 import PostCard from "@/components/PostCard";
 
@@ -68,7 +68,6 @@ export default function CommunityPage() {
       setPendingRequests((allMembers || []).filter((m) => m.chat_status === "pending").map((m) => ({ ...m, profile: map[m.user_id] })));
     }
 
-    // Full post shape, same fields the main feed uses, so PostCard renders identically
     const { data: postsData } = await supabase
       .from("posts")
       .select("id, image_url, caption, location, created_at, user_id, is_reel, profiles!user_id(username, avatar_url)")
@@ -148,14 +147,26 @@ export default function CommunityPage() {
           <Link href={`/communities/${id}/members`} className="text-xs font-mono font-semibold text-[#1C1A17]/60">
             Members
           </Link>
-          {isCreator && (
+          {isAdmin && (
             <div className="relative">
               <button onClick={() => setMenuOpen((v) => !v)}><MoreVertical size={20} color="#1C1A17" /></button>
               {menuOpen && (
                 <div className="absolute right-0 top-8 bg-white border border-[#DCD6C8] rounded-lg shadow-md overflow-hidden z-20 w-44">
-                  <button onClick={() => { setMenuOpen(false); setConfirmingDelete(true); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-mono text-red-600">
-                    <Trash2 size={15} /> Delete Community
-                  </button>
+                  <Link
+                    href={`/communities/${id}/edit`}
+                    onClick={() => setMenuOpen(false)}
+                    className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-mono text-[#1C1A17]"
+                  >
+                    <Pencil size={15} /> Edit Community
+                  </Link>
+                  {isCreator && (
+                    <button
+                      onClick={() => { setMenuOpen(false); setConfirmingDelete(true); }}
+                      className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-mono text-red-600 border-t border-[#DCD6C8]"
+                    >
+                      <Trash2 size={15} /> Delete Community
+                    </button>
+                  )}
                 </div>
               )}
             </div>
