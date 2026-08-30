@@ -133,17 +133,38 @@ export default function PostCard({ post, currentUserId, onPostDeleted }) {
   return (
     <div className="border-b border-hairline pb-3.5">
       <div className="flex items-center justify-between pl-4 pr-2.5 pt-3 pb-2.5">
-        <Link href={`/profile/${post.profiles?.username}`} className="flex items-center gap-2.5">
-          <img
-            src={post.profiles?.avatar_url || `https://picsum.photos/seed/${post.profiles?.username}/200/200`}
-            alt=""
-            className="w-8 h-8 rounded-full object-cover"
-          />
+        <div className="flex items-center gap-2.5">
+          <Link href={post.communities ? `/communities/${post.communities.id}` : `/profile/${post.profiles?.username}`}>
+            <img
+              src={
+                post.communities
+                  ? post.communities.avatar_url || `https://picsum.photos/seed/${post.communities.id}/200/200`
+                  : post.profiles?.avatar_url || `https://picsum.photos/seed/${post.profiles?.username}/200/200`
+              }
+              alt=""
+              className="w-8 h-8 rounded-full object-cover"
+            />
+          </Link>
           <div className="leading-tight">
-            <div className="font-semibold text-[13.5px]">{post.profiles?.username}</div>
-            {post.location && <div className="font-mono text-[10.5px] text-inksoft">{post.location}</div>}
+            {post.communities ? (
+              <>
+                <Link href={`/communities/${post.communities.id}`} className="font-semibold text-[13.5px] block">
+                  {post.communities.name}
+                </Link>
+                <Link href={`/profile/${post.profiles?.username}`} className="font-mono text-[10.5px] text-inksoft block">
+                  Posted by @{post.profiles?.username}
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link href={`/profile/${post.profiles?.username}`} className="font-semibold text-[13.5px] block">
+                  {post.profiles?.username}
+                </Link>
+                {post.location && <div className="font-mono text-[10.5px] text-inksoft">{post.location}</div>}
+              </>
+            )}
           </div>
-        </Link>
+        </div>
         {isOwner && (
           <button onClick={() => setMenuOpen(true)} aria-label="Post options" className="text-ink p-1.5">
             <MoreHorizontal size={20} strokeWidth={1.6} />
