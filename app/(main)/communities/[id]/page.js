@@ -83,7 +83,7 @@ export default function CommunityPage() {
         ? supabase.from("saves").select("post_id, user_id").eq("user_id", currentUserId).in("post_id", postIds)
         : { data: [] },
       postIds.length
-        ? supabase.from("comments").select("id, post_id, text, user_id, parent_id, profiles!user_id(username)").in("post_id", postIds)
+        ? supabase.from("comments").select("id, post_id, text, user_id, parent_id, profiles!user_id(username, avatar_url)").in("post_id", postIds)
         : { data: [] },
     ]);
 
