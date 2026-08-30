@@ -67,7 +67,7 @@ export default function ProfileTabs({ allItems, reels, isMe, profileUserId }) {
       const [{ data: likes }, { data: saves }, { data: comments }] = await Promise.all([
         supabase.from("likes").select("post_id, user_id").in("post_id", ids),
         currentUserId ? supabase.from("saves").select("post_id, user_id").eq("user_id", currentUserId).in("post_id", ids) : { data: [] },
-        supabase.from("comments").select("id, post_id, text, user_id, parent_id, profiles!user_id(username)").in("post_id", ids),
+        supabase.from("comments").select("id, post_id, text, user_id, parent_id, profiles!user_id(username, avatar_url)").in("post_id", ids),
       ]);
 
       const total = ordered.length;
