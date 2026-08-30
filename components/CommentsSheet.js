@@ -1,12 +1,21 @@
 "use client";
 import { useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { X, CornerUpLeft, Trash2 } from "lucide-react";
 
-function renderTextWithMentions(text) {
+function renderTextWithMentions(text, onMentionClick) {
   const parts = text.split(/(@[a-zA-Z0-9_.]+)/g);
   return parts.map((part, i) =>
     part.startsWith("@") ? (
-      <span key={i} className="font-semibold" style={{ color: "#FF6B35" }}>
+      <span
+        key={i}
+        className="font-semibold cursor-pointer active:opacity-60"
+        style={{ color: "#FF6B35" }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onMentionClick(part.slice(1));
+        }}
+      >
         {part}
       </span>
     ) : (
@@ -20,6 +29,7 @@ export default function CommentsSheet({ open, onClose, comments, onAddComment, o
   const [replyingTo, setReplyingTo] = useState(null); // { id, username }
   const [deleteError, setDeleteError] = useState("");
   const inputRef = useRef(null);
+  const router = useRouter();
 
   if (!open) return null;
 
@@ -50,11 +60,26 @@ export default function CommentsSheet({ open, onClose, comments, onAddComment, o
     if (result?.error) setDeleteError("Couldn't delete that note. Try again.");
   };
 
+  const goToProfile = (username) => {
+    if (!username) return;
+    onClose();
+    router.push(`/profile/${username}`);
+  };
+
   const renderComment = (c, isReply) => (
     <div key={c.id} className={`py-2 text-[13.5px] ${isReply ? "ml-7 border-l border-hairline pl-3" : ""}`}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1">
-          <span className="font-semibold">{c.profiles?.username}</span> {renderTextWithMentions(c.text)}
+          <span
+            className="font-semibold cursor-pointer active:opacity-60"
+            onClick={(e) => {
+              e.stopPropagation();
+              goToProfile(c.profiles?.username);
+            }}
+          >
+            {c.profiles?.username}
+          </span>{" "}
+          {renderTextWithMentions(c.text, goToProfile)}
         </div>
       </div>
       <div className="flex items-center gap-3 mt-1">
