@@ -68,7 +68,7 @@ export default function CommentsSheet({ open, onClose, comments, onAddComment, o
 
   const renderComment = (c, isReply) => {
     const username = c.profiles?.username;
-    const avatarUrl = c.profiles?.avatar_url;
+    const avatarSrc = c.profiles?.avatar_url || `https://picsum.photos/seed/${username}/200/200`;
 
     return (
       <div key={c.id} className={`py-2.5 ${isReply ? "ml-9 border-l border-hairline pl-3" : ""}`}>
@@ -78,15 +78,9 @@ export default function CommentsSheet({ open, onClose, comments, onAddComment, o
               e.stopPropagation();
               goToProfile(username);
             }}
-            className="shrink-0 w-8 h-8 rounded-full overflow-hidden bg-hairline flex items-center justify-center active:opacity-60"
+            className="shrink-0 w-8 h-8 rounded-full overflow-hidden bg-hairline active:opacity-60"
           >
-            {avatarUrl ? (
-              <img src={avatarUrl} alt={username} className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-[11px] font-semibold text-inksoft">
-                {username?.[0]?.toUpperCase() || "?"}
-              </span>
-            )}
+            <img src={avatarSrc} alt={username} className="w-full h-full object-cover" />
           </button>
           <div className="flex-1 min-w-0">
             <span
