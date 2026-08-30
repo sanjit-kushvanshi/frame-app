@@ -19,7 +19,7 @@ export default async function FeedPage() {
 
   const { data: posts } = await supabase
     .from("posts")
-    .select("id, image_url, caption, location, created_at, user_id, profiles!user_id(username, avatar_url)")
+    .select("id, image_url, caption, location, created_at, user_id, community_id, profiles!user_id(username, avatar_url), communities(id, name, avatar_url)")
     .eq("is_reel", false)
     .order("created_at", { ascending: false });
 
