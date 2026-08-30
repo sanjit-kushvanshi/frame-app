@@ -66,40 +66,60 @@ export default function CommentsSheet({ open, onClose, comments, onAddComment, o
     router.push(`/profile/${username}`);
   };
 
-  const renderComment = (c, isReply) => (
-    <div key={c.id} className={`py-2 text-[13.5px] ${isReply ? "ml-7 border-l border-hairline pl-3" : ""}`}>
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1">
-          <span
-            className="font-semibold cursor-pointer active:opacity-60"
+  const renderComment = (c, isReply) => {
+    const username = c.profiles?.username;
+    const avatarUrl = c.profiles?.avatar_url;
+
+    return (
+      <div key={c.id} className={`py-2.5 ${isReply ? "ml-9 border-l border-hairline pl-3" : ""}`}>
+        <div className="flex items-start gap-2.5">
+          <button
             onClick={(e) => {
               e.stopPropagation();
-              goToProfile(c.profiles?.username);
+              goToProfile(username);
             }}
+            className="shrink-0 w-8 h-8 rounded-full overflow-hidden bg-hairline flex items-center justify-center active:opacity-60"
           >
-            {c.profiles?.username}
-          </span>{" "}
-          {renderTextWithMentions(c.text, goToProfile)}
+            {avatarUrl ? (
+              <img src={avatarUrl} alt={username} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-[11px] font-semibold text-inksoft">
+                {username?.[0]?.toUpperCase() || "?"}
+              </span>
+            )}
+          </button>
+          <div className="flex-1 min-w-0">
+            <span
+              className="font-semibold text-[13.5px] cursor-pointer active:opacity-60"
+              onClick={(e) => {
+                e.stopPropagation();
+                goToProfile(username);
+              }}
+            >
+              {username}
+            </span>
+            <div className="text-[13.5px] mt-0.5">{renderTextWithMentions(c.text, goToProfile)}</div>
+            <div className="flex items-center gap-3 mt-1">
+              <button
+                onClick={() => startReply(isReply ? c.parent_id : c.id, username)}
+                className="flex items-center gap-1 text-[11px] text-inksoft font-mono"
+              >
+                <CornerUpLeft size={11} /> Reply
+              </button>
+              {c.user_id === currentUserId && (
+                <button
+                  onClick={() => handleDelete(c.id)}
+                  className="flex items-center gap-1 text-[11px] text-amber font-mono"
+                >
+                  <Trash2 size={11} /> Delete
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
-      <div className="flex items-center gap-3 mt-1">
-        <button
-          onClick={() => startReply(isReply ? c.parent_id : c.id, c.profiles?.username)}
-          className="flex items-center gap-1 text-[11px] text-inksoft font-mono"
-        >
-          <CornerUpLeft size={11} /> Reply
-        </button>
-        {c.user_id === currentUserId && (
-          <button
-            onClick={() => handleDelete(c.id)}
-            className="flex items-center gap-1 text-[11px] text-amber font-mono"
-          >
-            <Trash2 size={11} /> Delete
-          </button>
-        )}
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="fixed inset-0 bg-[rgba(28,26,23,0.5)] z-50 flex items-end" onClick={onClose}>
