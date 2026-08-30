@@ -21,7 +21,7 @@ export default async function ProfilePage({ params }) {
   const isMe = profile.id === user.id;
 
   const [{ data: allItems }, { count: followerCount }, { count: followingCount }, { data: iFollow }] = await Promise.all([
-    supabase.from("posts").select("id, image_url, is_reel").eq("user_id", profile.id).order("created_at", { ascending: false }),
+    supabase.from("posts").select("id, image_url, is_reel").eq("user_id", profile.id).is("community_id", null).order("created_at", { ascending: false }),
     supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", profile.id),
     supabase.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", profile.id),
     isMe ? { data: null } : supabase.from("follows").select("follower_id").eq("follower_id", user.id).eq("following_id", profile.id).maybeSingle(),
