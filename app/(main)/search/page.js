@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Search as SearchIcon, Clapperboard, Users, ChevronRight } from "lucide-react";
+import Avatar from "@/components/Avatar";
 
 export default function SearchPage() {
   const supabase = createClient();
@@ -82,11 +83,7 @@ export default function SearchPage() {
         <div className="px-4">
           {results.map((p) => (
             <Link key={p.id} href={`/profile/${p.username}`} className="flex items-center gap-3 py-2.5 border-b border-hairline">
-              <img
-                src={p.avatar_url || `https://picsum.photos/seed/${p.username}/200/200`}
-                alt=""
-                className="w-11 h-11 rounded-full object-cover"
-              />
+              <Avatar username={p.username} avatarUrl={p.avatar_url} size={44} />
               <div>
                 <div className="font-semibold text-[13.5px]">{p.username}</div>
                 <div className="text-inksoft text-xs">{p.bio}</div>
