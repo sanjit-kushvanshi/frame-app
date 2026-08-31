@@ -2,6 +2,7 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { X, CornerUpLeft, Trash2 } from "lucide-react";
+import Avatar from "@/components/Avatar";
 
 function renderTextWithMentions(text, onMentionClick) {
   const parts = text.split(/(@[a-zA-Z0-9_.]+)/g);
@@ -68,20 +69,20 @@ export default function CommentsSheet({ open, onClose, comments, onAddComment, o
 
   const renderComment = (c, isReply) => {
     const username = c.profiles?.username;
-    const avatarSrc = c.profiles?.avatar_url || `https://picsum.photos/seed/${username}/200/200`;
 
     return (
       <div key={c.id} className={`py-2.5 ${isReply ? "ml-9 border-l border-hairline pl-3" : ""}`}>
         <div className="flex items-start gap-2.5">
-          <button
+          <Avatar
+            username={username}
+            avatarUrl={c.profiles?.avatar_url}
+            size={32}
+            className="active:opacity-60 cursor-pointer"
             onClick={(e) => {
               e.stopPropagation();
               goToProfile(username);
             }}
-            className="shrink-0 w-8 h-8 rounded-full overflow-hidden bg-hairline active:opacity-60"
-          >
-            <img src={avatarSrc} alt={username} className="w-full h-full object-cover" />
-          </button>
+          />
           <div className="flex-1 min-w-0">
             <span
               className="font-semibold text-[13.5px] cursor-pointer active:opacity-60"
