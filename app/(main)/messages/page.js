@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { SquarePen } from "lucide-react";
+import Avatar from "@/components/Avatar";
 
 export default async function InboxPage() {
   const supabase = createClient();
@@ -121,11 +122,12 @@ export default async function InboxPage() {
             ) : (
               <div className="flex -space-x-3 w-11 flex-shrink-0">
                 {c.members.slice(0, 2).map((m) => (
-                  <img
+                  <Avatar
                     key={m.id}
-                    src={m.avatar_url || `https://picsum.photos/seed/${m.username}/200/200`}
-                    alt=""
-                    className="w-8 h-8 rounded-full object-cover border-2 border-paper"
+                    username={m.username}
+                    avatarUrl={m.avatar_url}
+                    size={32}
+                    className="border-2 border-paper"
                   />
                 ))}
               </div>
@@ -140,11 +142,7 @@ export default async function InboxPage() {
           </Link>
         ) : (
           <Link key={c.id} href={`/messages/${c.id}`} className="flex items-center gap-3 px-4 py-3 border-b border-hairline">
-            <img
-              src={c.other?.avatar_url || `https://picsum.photos/seed/${c.other?.username}/200/200`}
-              alt=""
-              className="w-11 h-11 rounded-full object-cover"
-            />
+            <Avatar username={c.other?.username} avatarUrl={c.other?.avatar_url} size={44} />
             <div className="flex-1 min-w-0">
               <div className={`text-[13.5px] ${c.unread ? "font-bold" : "font-semibold"}`}>{c.other?.username}</div>
               <div className={`text-xs truncate ${c.unread ? "font-bold text-ink" : "text-inksoft"}`}>
