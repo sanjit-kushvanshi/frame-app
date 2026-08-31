@@ -5,6 +5,7 @@ import FollowButton from "@/components/FollowButton";
 import MessageButton from "@/components/MessageButton";
 import ProfileTabs from "@/components/ProfileTabs";
 import ProfileSettingsMenu from "@/components/ProfileSettingsMenu";
+import Avatar from "@/components/Avatar";
 
 export default async function ProfilePage({ params }) {
   const supabase = createClient();
@@ -21,7 +22,7 @@ export default async function ProfilePage({ params }) {
   const isMe = profile.id === user.id;
 
   const [{ data: allItems }, { count: followerCount }, { count: followingCount }, { data: iFollow }] = await Promise.all([
-    supabase.from("posts").select("id, image_url, is_reel").eq("user_id", profile.id).is("community_id", null).order("created_at", { ascending: false }),
+    supabase.from("posts").select("id, image_url, is_reel").eq("user_id", profile.id).order("created_at", { ascending: false }),
     supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", profile.id),
     supabase.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", profile.id),
     isMe ? { data: null } : supabase.from("follows").select("follower_id").eq("follower_id", user.id).eq("following_id", profile.id).maybeSingle(),
@@ -39,10 +40,11 @@ export default async function ProfilePage({ params }) {
       )}
 
       <div className="flex gap-5 px-4 pt-2 pb-2.5 items-center">
-        <img
-          src={profile.avatar_url || `https://picsum.photos/seed/${profile.username}/200/200`}
-          alt={profile.username}
-          className="w-[76px] h-[76px] rounded-full object-cover border border-hairline"
+        <Avatar
+          username={profile.username}
+          avatarUrl={profile.avatar_url}
+          size={76}
+          className="border border-hairline"
         />
         <div className="flex gap-5 font-mono">
           <div className="text-center">
