@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { X, Heart, SendHorizontal, Eye, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import Avatar from "@/components/Avatar";
 
 const IMAGE_DURATION = 5000;
 
@@ -230,7 +231,7 @@ export default function StoryViewer({ groups: initialGroups, startIndex, current
 
         <div className="absolute top-6 left-3 right-3 flex items-center justify-between z-10">
           <div className="flex items-center gap-2">
-            <img src={group.avatar_url || `https://picsum.photos/seed/${group.username}/200/200`} alt="" className="w-8 h-8 rounded-full object-cover border border-white/40" />
+            <Avatar username={group.username} avatarUrl={group.avatar_url} size={32} className="border border-white/40" />
             <span className="text-white text-[13px] font-semibold">{group.username}</span>
           </div>
           <div className="flex items-center gap-2">
@@ -319,11 +320,7 @@ export default function StoryViewer({ groups: initialGroups, startIndex, current
                 {!viewersLoading &&
                   viewersList.map((v) => (
                     <div key={v.viewer_id} className="flex items-center gap-2.5 py-2">
-                      <img
-                        src={v.profiles?.avatar_url || `https://picsum.photos/seed/${v.profiles?.username}/200/200`}
-                        alt=""
-                        className="w-9 h-9 rounded-full object-cover"
-                      />
+                      <Avatar username={v.profiles?.username} avatarUrl={v.profiles?.avatar_url} size={36} />
                       <span className="text-[13.5px] flex-1">{v.profiles?.username}</span>
                       {v.liked && <Heart size={16} fill="#FF6B35" color="#FF6B35" />}
                     </div>
