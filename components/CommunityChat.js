@@ -5,6 +5,7 @@ import { compressImage } from "@/lib/mediaCompress";
 import {
   Send, X, Heart, CornerUpLeft, CornerUpRight, Pencil, Copy, Trash2, ImagePlus,
 } from "lucide-react";
+import Avatar from "@/components/Avatar";
 
 const REACTION_EMOJIS = ["❤️", "😂", "😮", "😢", "👍", "🔥"];
 
@@ -479,7 +480,7 @@ export default function CommunityChat({ communityId, userId, chatStatus, profile
               {!forwardLoading && forwardList.map((c) => (
                 <div key={c.id} className="flex items-center justify-between py-2.5">
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <img src={c.avatar_url || `https://picsum.photos/seed/${c.id}/200/200`} alt="" className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+                    <Avatar username={c.title} avatarUrl={c.avatar_url} size={36} className="flex-shrink-0" />
                     <div className="text-[13.5px] font-mono truncate">{c.title}</div>
                   </div>
                   <button onClick={() => forwardTo(c.id)} disabled={forwardSentTo.has(c.id)} className="text-[12.5px] font-mono font-semibold px-3.5 py-1.5 rounded-full flex-shrink-0" style={{ background: forwardSentTo.has(c.id) ? "#DCD6C8" : "#FF6B35", color: forwardSentTo.has(c.id) ? "#1C1A17" : "#fff" }}>
