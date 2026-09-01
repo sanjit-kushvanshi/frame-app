@@ -678,12 +678,7 @@ export default function ChatThread({
             ) : (
               <div className="flex -space-x-3">
                 {otherParticipants.slice(0, 3).map((p) => (
-                  <img
-                    key={p.id}
-                    src={p.avatar_url || `https://picsum.photos/seed/${p.username}/200/200`}
-                    alt=""
-                    className="w-8 h-8 rounded-full object-cover border-2 border-paper"
-                  />
+                  <Avatar key={p.id} username={p.username} avatarUrl={p.avatar_url} size={32} className="border-2 border-paper" />
                 ))}
               </div>
             )}
@@ -694,7 +689,7 @@ export default function ChatThread({
           </button>
         ) : (
           <button onClick={() => router.push(`/profile/${other?.username}`)} className="flex items-center gap-2.5">
-            <img src={other?.avatar_url || `https://picsum.photos/seed/${other?.username}/200/200`} alt="" className="w-8 h-8 rounded-full object-cover" />
+            <Avatar username={other?.username} avatarUrl={other?.avatar_url} size={32} />
             <div className="font-semibold text-sm">{other?.username}</div>
           </button>
         )}
@@ -935,11 +930,7 @@ export default function ChatThread({
                 forwardList.map((c) => (
                   <div key={c.id} className="flex items-center justify-between py-2.5">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <img
-                        src={c.avatar_url || `https://picsum.photos/seed/${c.id}/200/200`}
-                        alt=""
-                        className="w-9 h-9 rounded-full object-cover flex-shrink-0"
-                      />
+                      <Avatar username={c.title} avatarUrl={c.avatar_url} size={36} className="flex-shrink-0" />
                       <div className="text-[13.5px] truncate">{c.title}</div>
                     </div>
                     <button
