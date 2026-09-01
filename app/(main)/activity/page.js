@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
+import Avatar from "@/components/Avatar";
 
 export default async function ActivityPage() {
   const supabase = createClient();
@@ -35,11 +36,7 @@ export default async function ActivityPage() {
           href={n.type === "follow" || n.type === "story_like" ? `/profile/${n.profiles?.username}` : "/"}
           className={`flex items-center gap-2.5 py-2.5 ${!n.read ? "font-semibold" : ""}`}
         >
-          <img
-            src={n.profiles?.avatar_url || `https://picsum.photos/seed/${n.profiles?.username}/200/200`}
-            alt=""
-            className="w-9 h-9 rounded-full object-cover flex-shrink-0"
-          />
+          <Avatar username={n.profiles?.username} avatarUrl={n.profiles?.avatar_url} size={36} className="flex-shrink-0" />
           <div className="text-[13px]">
             <span className="font-semibold">{n.profiles?.username}</span> {labelFor(n)}
           </div>
