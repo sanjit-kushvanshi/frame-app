@@ -51,10 +51,36 @@ export default function NewMessagePage() {
       .eq("user_a", a)
       .eq("user_b", b)
       .maybeSingle();
+
     if (!convo) {
-      const { data: created } = await supabase.from("conversations").insert({ user_a: a, user_b: b }).select("id").single();
+      const { data: created, error: convoError } = await supabase
+        .from("conversations")
+        .insert({ user_a: a, user_b: b })
+        .select("id")
+        .single();
+
+      if (convoError || !created) {
+        alert("Couldn't start the conversation: " + (convoError?.message || "unknown error"));
+        return;
+      }
       convo = created;
+
+      const participantRows = [currentUserId, targetUserId].map((user_id) => ({
+        conversation_id: convo.id,
+        user_id,
+        is_admin: user_id === currentUserId,
+      }));
+
+      const { error: participantsError } = await supabase
+        .from("conversation_participants")
+        .insert(participantRows);
+
+      if (participantsError) {
+        alert("Conversation created but adding participants failed: " + participantsError.message);
+        return;
+      }
     }
+
     if (convo) router.push(`/messages/${convo.id}`);
   };
 
