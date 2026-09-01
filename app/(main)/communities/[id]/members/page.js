@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { ChevronLeft, ShieldCheck, ShieldOff, UserMinus } from "lucide-react";
+import Avatar from "@/components/Avatar";
 
 export default function CommunityMembersPage() {
   const supabase = createClient();
@@ -106,11 +107,7 @@ export default function CommunityMembersPage() {
             <div key={m.id} className="px-4 py-3">
               <div className="flex items-center gap-3">
                 <Link href={`/profile/${m.profile?.username}`} className="flex items-center gap-3 flex-1 min-w-0">
-                  <img
-                    src={m.profile?.avatar_url || `https://picsum.photos/seed/${m.user_id}/100`}
-                    className="w-10 h-10 rounded-full object-cover flex-shrink-0"
-                    alt=""
-                  />
+                  <Avatar username={m.profile?.username} avatarUrl={m.profile?.avatar_url} size={40} className="flex-shrink-0" />
                   <p className="text-sm font-mono text-[#1C1A17] truncate">{m.profile?.username}</p>
                 </Link>
                 {roleLabel(m.role) && (
