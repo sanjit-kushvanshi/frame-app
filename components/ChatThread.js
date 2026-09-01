@@ -436,8 +436,12 @@ export default function ChatThread({
     setReplyingTo(null);
 
     const { data, error } = await supabase.from("messages").insert(newRows).select();
-    setUploading(false);
-    if (!error && data) {
+
+setUploading(false);
+
+if (error) alert("SEND ERROR: " + error.message);
+
+if (!error && data) {
       setMessages((prev) => {
         const ids = new Set(prev.map((m) => m.id));
         return [...prev, ...data.filter((m) => !ids.has(m.id))];
