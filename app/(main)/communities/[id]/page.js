@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { ChevronLeft, Check, X, MoreVertical, Trash2, LayoutGrid, Rows3, Pencil } from "lucide-react";
 import CommunityChat from "@/components/CommunityChat";
 import PostCard from "@/components/PostCard";
+import Avatar from "@/components/Avatar";
 
 export default function CommunityPage() {
   const supabase = createClient();
@@ -216,7 +217,7 @@ export default function CommunityPage() {
               {pendingRequests.map((r) => (
                 <div key={r.id} className="flex items-center justify-between py-1.5">
                   <div className="flex items-center gap-2">
-                    <img src={r.profile?.avatar_url || `https://picsum.photos/seed/${r.user_id}/100`} className="w-8 h-8 rounded-full object-cover" alt="" />
+                    <Avatar username={r.profile?.username} avatarUrl={r.profile?.avatar_url} size={32} />
                     <span className="text-sm font-mono text-[#1C1A17]">{r.profile?.username}</span>
                   </div>
                   <div className="flex gap-2">
