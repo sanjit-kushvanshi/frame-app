@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ChevronLeft, SendHorizontal, ImagePlus, X, Smile, Clapperboard, CornerUpLeft, CornerUpRight, Pencil, Trash2, Heart, Mic, Square, Play, Pause, Copy, Download } from "lucide-react";
 import { compressImage, checkVideoSize } from "@/lib/mediaCompress";
 import { createClient } from "@/lib/supabase/client";
+import Avatar from "@/components/Avatar";
 
 const STICKERS = ["❤️", "🔥", "😂", "😍", "👍", "🎉", "😭", "👀", "💀", "✨", "🙏", "😮"];
 const REACTION_EMOJIS = ["❤️", "😂", "😮", "😢", "👍", "🔥"];
