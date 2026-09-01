@@ -5,6 +5,7 @@ import { PlusSquare } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { compressImage, checkVideoSize } from "@/lib/mediaCompress";
 import StoryViewer from "@/components/StoryViewer";
+import Avatar from "@/components/Avatar";
 
 export default function StoriesRow({ myUsername, myAvatar, myStories, groups, currentUserId }) {
   const supabase = createClient();
@@ -52,10 +53,11 @@ export default function StoriesRow({ myUsername, myAvatar, myStories, groups, cu
           className="relative w-[54px] h-[54px] rounded-full cursor-pointer"
           style={myStories?.length > 0 ? { padding: 2, background: "conic-gradient(#FF6B35, #F4B942, #FF6B35)" } : {}}
         >
-          <img
-            src={myAvatar || `https://picsum.photos/seed/${myUsername}/200/200`}
-            alt=""
-            className="w-full h-full rounded-full object-cover border-2 border-paper block"
+          <Avatar
+            username={myUsername}
+            avatarUrl={myAvatar}
+            size={myStories?.length > 0 ? 50 : 54}
+            className="border-2 border-paper block"
           />
           <button
             onClick={(e) => {
@@ -81,11 +83,7 @@ export default function StoriesRow({ myUsername, myAvatar, myStories, groups, cu
           style={{ width: 64 }}
         >
           <div className="w-[54px] h-[54px] rounded-full p-[2px]" style={{ background: "conic-gradient(#FF6B35, #F4B942, #FF6B35)" }}>
-            <img
-              src={g.avatar_url || `https://picsum.photos/seed/${g.username}/200/200`}
-              alt={g.username}
-              className="w-full h-full rounded-full object-cover border-2 border-paper block"
-            />
+            <Avatar username={g.username} avatarUrl={g.avatar_url} size={50} className="border-2 border-paper block" />
           </div>
           <span className="text-[11px] font-mono text-ink block w-full text-center overflow-hidden whitespace-nowrap text-ellipsis">
             {g.username}
