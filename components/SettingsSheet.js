@@ -8,24 +8,82 @@ import { createClient } from "@/lib/supabase/client";
 export default function SettingsSheet({ open, onClose }) {
   const router = useRouter();
   const supabase = createClient();
+
+  // Delete account state
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [error, setError] = useState("");
+  const [deleteError, setDeleteError] = useState("");
+
+  // Change password state
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [pwLoading, setPwLoading] = useState(false);
+  const [pwError, setPwError] = useState("");
+  const [pwSuccess, setPwSuccess] = useState(false);
 
   if (!open) return null;
 
   const handleDelete = async () => {
     setDeleting(true);
-    setError("");
+    setDeleteError("");
     const { error } = await supabase.rpc("delete_user_account");
     if (error) {
-      setError("Something went wrong. Please try again.");
+      setDeleteError("Something went wrong. Please try again.");
       setDeleting(false);
       return;
     }
     await supabase.auth.signOut();
     router.push("/login");
     router.refresh();
+  };
+
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    setPwError("");
+    setPwSuccess(false);
+
+    if (newPassword.length < 6) {
+      setPwError("New password must be at least 6 characters.");
+      return;
+    }
+
+    setPwLoading(true);
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    // Re-verify current password before allowing the change
+    const { error: verifyError } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: currentPassword,
+    });
+
+    if (verifyError) {
+      setPwError("Current password is incorrect.");
+      setPwLoading(false);
+      return;
+    }
+
+    const { error: updateError } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+
+    setPwLoading(false);
+
+    if (updateError) {
+      setPwError("Something went wrong. Please try again.");
+      return;
+    }
+
+    setPwSuccess(true);
+    setCurrentPassword("");
+    setNewPassword("");
+    setTimeout(() => {
+      setChangingPassword(false);
+      setPwSuccess(false);
+    }, 1500);
   };
 
   return (
@@ -52,37 +110,92 @@ export default function SettingsSheet({ open, onClose }) {
             Account
           </div>
 
-          {!confirming ? (
+          {!changingPassword ? (
             <button
-              onClick={() => setConfirming(true)}
-              className="w-full text-left text-sm text-amber font-semibold py-2"
+              onClick={() => setChangingPassword(true)}
+              className="w-full text-left text-sm text-ink py-2"
             >
-              Delete account
+              Change password
             </button>
           ) : (
-            <div className="border border-amber rounded-lg p-3 space-y-3">
-              <p className="text-sm text-ink">
-                This permanently deletes your account, posts, and messages. This can&apos;t be undone.
-              </p>
-              {error && <div className="text-amber text-xs">{error}</div>}
+            <form onSubmit={handlePasswordChange} className="space-y-2 border border-hairline rounded-lg p-3">
+              <input
+                type="password"
+                required
+                placeholder="Current password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                className="w-full border border-hairline rounded-lg px-3 py-2 text-sm bg-white outline-none"
+              />
+              <input
+                type="password"
+                required
+                minLength={6}
+                placeholder="New password (min 6 characters)"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="w-full border border-hairline rounded-lg px-3 py-2 text-sm bg-white outline-none"
+              />
+              {pwError && <div className="text-amber text-xs">{pwError}</div>}
+              {pwSuccess && <div className="text-green-600 text-xs">Password updated.</div>}
               <div className="flex gap-2">
                 <button
-                  onClick={() => setConfirming(false)}
-                  disabled={deleting}
+                  type="button"
+                  onClick={() => {
+                    setChangingPassword(false);
+                    setCurrentPassword("");
+                    setNewPassword("");
+                    setPwError("");
+                  }}
+                  disabled={pwLoading}
                   className="flex-1 border border-hairline rounded-lg py-2 text-sm"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={handleDelete}
-                  disabled={deleting}
-                  className="flex-1 bg-amber text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-50"
+                  type="submit"
+                  disabled={pwLoading}
+                  className="flex-1 bg-ink text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-50"
                 >
-                  {deleting ? "Deleting..." : "Yes, delete"}
+                  {pwLoading ? "Updating..." : "Update"}
                 </button>
               </div>
-            </div>
+            </form>
           )}
+
+          <div className="border-t border-hairline mt-4 pt-4">
+            {!confirming ? (
+              <button
+                onClick={() => setConfirming(true)}
+                className="w-full text-left text-sm text-amber font-semibold py-2"
+              >
+                Delete account
+              </button>
+            ) : (
+              <div className="border border-amber rounded-lg p-3 space-y-3">
+                <p className="text-sm text-ink">
+                  This permanently deletes your account, posts, and messages. This can&apos;t be undone.
+                </p>
+                {deleteError && <div className="text-amber text-xs">{deleteError}</div>}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setConfirming(false)}
+                    disabled={deleting}
+                    className="flex-1 border border-hairline rounded-lg py-2 text-sm"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    className="flex-1 bg-amber text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-50"
+                  >
+                    {deleting ? "Deleting..." : "Yes, delete"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         <button
