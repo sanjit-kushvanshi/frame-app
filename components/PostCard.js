@@ -172,11 +172,11 @@ export default function PostCard({ post, currentUserId, onPostDeleted }) {
         )}
       </div>
 
-      <div className="relative" onClick={handleImgTap}>
+      <div className="relative bg-paperdim" onClick={handleImgTap}>
         {isVideo ? (
-          <video src={post.image_url} controls playsInline className="w-full block aspect-square object-cover" onClick={(e) => e.stopPropagation()} />
+          <video src={post.image_url} controls playsInline className="w-full block aspect-square object-contain" onClick={(e) => e.stopPropagation()} />
         ) : (
-          <img src={post.image_url} alt={caption} className="w-full block aspect-square object-cover" draggable={false} />
+          <img src={post.image_url} alt={caption} className="w-full block aspect-square object-contain" draggable={false} />
         )}
         <div className="absolute top-2.5 left-2.5 font-mono text-[11px] text-white bg-[rgba(28,26,23,0.55)] px-[7px] py-[3px] rounded backdrop-blur-sm">
           No.{String(post.frame_no).padStart(3, "0")}
