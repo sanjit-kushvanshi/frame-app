@@ -125,9 +125,9 @@ export default function NewPostPage() {
             <span className="font-mono text-xs text-inksoft">compressing...</span>
           ) : preview ? (
             fileType === "video" ? (
-              <video src={preview} controls className="w-full h-full object-cover" />
+              <video src={preview} controls className="w-full h-full object-contain" />
             ) : (
-              <img src={preview} alt="preview" className="w-full h-full object-cover" />
+              <img src={preview} alt="preview" className="w-full h-full object-contain" />
             )
           ) : (
             <div className="flex flex-col items-center gap-2 text-inksoft">
