@@ -1,17 +1,16 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 export default function SignupPage() {
-  const router = useRouter();
   const supabase = createClient();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -28,9 +27,25 @@ export default function SignupPage() {
       setError(error.message);
       return;
     }
-    router.push("/");
-    router.refresh();
+    setSent(true);
   };
+
+  if (sent) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6">
+        <div className="w-full max-w-sm text-center">
+          <div className="font-display italic font-semibold text-3xl mb-4">Frame</div>
+          <p className="text-sm text-ink mb-2">Check your email</p>
+          <p className="text-sm text-inksoft">
+            We sent a confirmation link to <span className="text-ink font-semibold">{email}</span>. Tap it to activate your account, then come back and log in.
+          </p>
+          <Link href="/login" className="text-amber font-semibold text-sm mt-6 inline-block">
+            Back to log in
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center px-6">
