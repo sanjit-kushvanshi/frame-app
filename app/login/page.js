@@ -39,7 +39,7 @@ function InstallBanner() {
 export default function LoginPage() {
   const router = useRouter();
   const supabase = createClient();
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -48,7 +48,30 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+    const trimmed = identifier.trim();
+    let loginEmail = trimmed;
+
+    // If it's not an email, treat it as a username and look up the email
+    if (!trimmed.includes("@")) {
+      const { data: profile, error: lookupError } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("username", trimmed)
+        .single();
+
+      if (lookupError || !profile?.email) {
+        setError("No account found with that username.");
+        setLoading(false);
+        return;
+      }
+      loginEmail = profile.email;
+    }
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: loginEmail,
+      password,
+    });
     setLoading(false);
     if (error) {
       setError(error.message);
@@ -69,11 +92,13 @@ export default function LoginPage() {
           </div>
           <form onSubmit={handleSubmit} className="space-y-3">
             <input
-              type="email"
+              type="text"
               required
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email or username"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              autoCapitalize="none"
+              autoCorrect="off"
               className="w-full border border-hairline rounded-lg px-4 py-3 text-sm bg-white outline-none"
             />
             <input
