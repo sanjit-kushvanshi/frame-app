@@ -43,9 +43,10 @@ export default async function InboxPage() {
 
   const getPreviewText = (message, currentUserId) => {
     if (!message) return "Say hello";
-    
     const prefix = message.sender_id === currentUserId ? "You: " : "";
-    
+    if (message.view_once && message.sender_id !== currentUserId && !message.viewed_at) {
+      return "View once message";
+    }
     if (message.text && message.media_type !== "sticker") {
       return prefix + message.text;
     }
