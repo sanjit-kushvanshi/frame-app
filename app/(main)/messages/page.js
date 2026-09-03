@@ -45,7 +45,7 @@ export default async function InboxPage() {
     if (!message) return "Say hello";
     const prefix = message.sender_id === currentUserId ? "You: " : "";
     if (message.view_once && message.sender_id !== currentUserId && !message.viewed_at) {
-      return "View once message";
+      return "Sent a message";
     }
     if (message.text && message.media_type !== "sticker") {
       return prefix + message.text;
