@@ -158,7 +158,7 @@ export default function ChatThread({
   const [forwardLoading, setForwardLoading] = useState(false);
   const [forwardSentTo, setForwardSentTo] = useState(new Set());
   const [viewOnceMode, setViewOnceMode] = useState(false);
-  const [revealedOnce, setRevealedOnce] = useState(new Set());
+  const [viewOnceModal, setViewOnceModal] = useState(null);
   const scrollRef = useRef(null);
   const fileInputRef = useRef(null);
   const messagesRef = useRef(messages);
@@ -459,18 +459,10 @@ if (!error && data) {
   };
 
   const openViewOnce = async (m) => {
-    setRevealedOnce((prev) => new Set(prev).add(m.id));
-    if (!m.viewed_at) {
-      const nowIso = new Date().toISOString();
-      const { data, error } = await supabase
-        .from("messages")
-        .update({ viewed_at: nowIso })
-        .eq("id", m.id)
-        .select()
-        .single();
-      if (!error && data) {
-        setMessages((prev) => prev.map((x) => (x.id === data.id ? { ...x, ...data } : x)));
-      }
+    setViewOnceModal(m);
+    const { data, error } = await supabase.rpc("mark_view_once_viewed", { message_id_input: m.id });
+    if (!error && data && data[0]) {
+      setMessages((prev) => prev.map((x) => (x.id === data[0].id ? { ...x, ...data[0] } : x)));
     }
   };
 
@@ -700,7 +692,7 @@ if (!error && data) {
   const previewText = (msg) => {
     if (!msg) return "";
     if (msg.deleted) return "Message unsent";
-    const locked = msg.view_once && msg.sender_id !== currentUserId && !msg.viewed_at && !revealedOnce.has(msg.id);
+    const locked = msg.view_once && msg.sender_id !== currentUserId && !msg.viewed_at;
     if (locked) return "View once message";
     return msg.text || (msg.media_type === "video" ? "Video" : msg.media_type === "voice" ? "Voice message" : "Photo");
   };
@@ -744,8 +736,8 @@ if (!error && data) {
           const replied = m.reply_to_id ? findMessage(m.reply_to_id) : null;
           const isMe = m.sender_id === currentUserId;
           const sender = isGroup && !isMe ? profileById(m.sender_id) : null;
-          const viewOnceLocked = m.view_once && !isMe && !m.viewed_at && !revealedOnce.has(m.id);
-          const viewOnceOpened = m.view_once && !isMe && m.viewed_at && !revealedOnce.has(m.id);
+          const viewOnceLocked = m.view_once && !isMe && !m.viewed_at;
+          const viewOnceOpened = m.view_once && !isMe && m.viewed_at;
 
           if (m.deleted) {
             return (
@@ -979,6 +971,24 @@ if (!error && data) {
           ) : (
             <img src={lightbox.url} alt="" className="max-w-full max-h-full object-contain" onClick={(e) => e.stopPropagation()} />
           )}
+        </div>
+      )}
+
+      {viewOnceModal && (
+        <div
+          className="fixed inset-0 bg-black z-[60] flex items-center justify-center px-8"
+          onClick={() => setViewOnceModal(null)}
+        >
+          <button
+            onClick={() => setViewOnceModal(null)}
+            className="absolute top-4 right-4 text-white z-10"
+            aria-label="Close"
+          >
+            <X size={26} />
+          </button>
+          <div className="text-white text-[17px] text-center leading-relaxed" onClick={(e) => e.stopPropagation()}>
+            {viewOnceModal.text}
+          </div>
         </div>
       )}
 
