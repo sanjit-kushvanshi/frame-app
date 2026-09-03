@@ -158,7 +158,7 @@ export default function ChatThread({
   const [forwardLoading, setForwardLoading] = useState(false);
   const [forwardSentTo, setForwardSentTo] = useState(new Set());
   const [viewOnceMode, setViewOnceMode] = useState(false);
-  const [viewOnceModal, setViewOnceModal] = useState(null);
+  const [revealedId, setRevealedId] = useState(null);
   const scrollRef = useRef(null);
   const fileInputRef = useRef(null);
   const messagesRef = useRef(messages);
@@ -459,7 +459,7 @@ if (!error && data) {
   };
 
   const openViewOnce = async (m) => {
-    setViewOnceModal(m);
+    setRevealedId(m.id);
     const { data, error } = await supabase.rpc("mark_view_once_viewed", { message_id_input: m.id });
     if (!error && data && data[0]) {
       setMessages((prev) => prev.map((x) => (x.id === data[0].id ? { ...x, ...data[0] } : x)));
@@ -736,8 +736,8 @@ if (!error && data) {
           const replied = m.reply_to_id ? findMessage(m.reply_to_id) : null;
           const isMe = m.sender_id === currentUserId;
           const sender = isGroup && !isMe ? profileById(m.sender_id) : null;
-          const viewOnceLocked = m.view_once && !isMe && !m.viewed_at;
-          const viewOnceOpened = m.view_once && !isMe && m.viewed_at;
+          const viewOnceLocked = m.view_once && !isMe && !m.viewed_at && revealedId !== m.id;
+          const viewOnceOpened = m.view_once && !isMe && m.viewed_at && revealedId !== m.id;
 
           if (m.deleted) {
             return (
@@ -974,23 +974,6 @@ if (!error && data) {
         </div>
       )}
 
-      {viewOnceModal && (
-  <div
-    className="fixed inset-0 bg-black z-[60] flex items-center justify-center px-8"
-    onClick={() => setViewOnceModal(null)}
-  >
-    <button
-      onClick={() => setViewOnceModal(null)}
-      className="absolute top-4 right-4 text-white z-10"
-      aria-label="Close"
-    >
-      <X size={26} />
-    </button>
-    <div className="text-white text-[17px] text-center leading-relaxed" onClick={(e) => e.stopPropagation()}>
-      {viewOnceModal.text}
-    </div>
-  </div>
-)}
       {forwardFor && (
         <div className="fixed inset-0 bg-[rgba(28,26,23,0.4)] z-50 flex items-end" onClick={() => setForwardFor(null)}>
           <div onClick={(e) => e.stopPropagation()} className="bg-paper w-full rounded-t-2xl p-4 pb-6 max-h-[70vh] flex flex-col">
