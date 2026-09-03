@@ -974,7 +974,23 @@ if (!error && data) {
         </div>
       )}
 
-      
+      {viewOnceModal && (
+  <div
+    className="fixed inset-0 bg-black z-[60] flex items-center justify-center px-8"
+    onClick={() => setViewOnceModal(null)}
+  >
+    <button
+      onClick={() => setViewOnceModal(null)}
+      className="absolute top-4 right-4 text-white z-10"
+      aria-label="Close"
+    >
+      <X size={26} />
+    </button>
+    <div className="text-white text-[17px] text-center leading-relaxed" onClick={(e) => e.stopPropagation()}>
+      {viewOnceModal.text}
+    </div>
+  </div>
+)}
       {forwardFor && (
         <div className="fixed inset-0 bg-[rgba(28,26,23,0.4)] z-50 flex items-end" onClick={() => setForwardFor(null)}>
           <div onClick={(e) => e.stopPropagation()} className="bg-paper w-full rounded-t-2xl p-4 pb-6 max-h-[70vh] flex flex-col">
