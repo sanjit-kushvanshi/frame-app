@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { ChevronLeft, Camera, X, Check, Pencil, ShieldCheck, ShieldMinus, Link2, Copy, Share2, Send } from "lucide-react";
 import { compressImage } from "@/lib/mediaCompress";
 import { createClient } from "@/lib/supabase/client";
@@ -289,14 +290,16 @@ export default function GroupInfo({ conversationId, currentUserId, isAdmin, isCr
             <div className="text-[12.5px] font-semibold text-inksoft mb-2">Join requests</div>
             {joinRequests.map((req) => (
               <div key={req.id} className="flex items-center gap-3 py-2">
-                <img
-                  src={req.profile?.avatar_url || `https://picsum.photos/seed/${req.profile?.username}/200/200`}
-                  alt=""
-                  className="w-9 h-9 rounded-full object-cover"
-                />
-                <div className="flex-1 text-[13px] font-semibold">{req.profile?.username}</div>
-                <button onClick={() => approveRequest(req)} className="text-[11.5px] font-semibold" style={{ color: "#FF6B35" }}>Approve</button>
-                <button onClick={() => rejectRequest(req)} className="text-[11.5px] text-inksoft">Reject</button>
+                <Link href={`/profile/${req.profile?.username}`} className="flex items-center gap-3 flex-1 min-w-0">
+                  <img
+                    src={req.profile?.avatar_url || `https://picsum.photos/seed/${req.profile?.username}/200/200`}
+                    alt=""
+                    className="w-9 h-9 rounded-full object-cover"
+                  />
+                  <div className="text-[13px] font-semibold truncate">{req.profile?.username}</div>
+                </Link>
+                <button onClick={() => approveRequest(req)} className="text-[11.5px] font-semibold flex-shrink-0" style={{ color: "#FF6B35" }}>Approve</button>
+                <button onClick={() => rejectRequest(req)} className="text-[11.5px] text-inksoft flex-shrink-0">Reject</button>
               </div>
             ))}
           </div>
@@ -329,18 +332,20 @@ export default function GroupInfo({ conversationId, currentUserId, isAdmin, isCr
 
         {members.map((m) => (
           <div key={m.id} className="flex items-center gap-3 px-4 py-2.5 border-b border-hairline">
-            <img src={m.avatar_url || `https://picsum.photos/seed/${m.username}/200/200`} alt="" className="w-10 h-10 rounded-full object-cover" />
-            <div className="flex-1 min-w-0">
-              <div className="text-[13.5px] font-semibold flex items-center gap-1.5">
-                <span className="truncate">{m.username}</span>
-                {m.id === currentUserId && <span className="text-inksoft font-normal flex-shrink-0">(you)</span>}
-                {m.isAdmin && (
-                  <span className="flex items-center gap-0.5 text-[10px] font-mono px-1.5 py-0.5 rounded-full flex-shrink-0" style={{ color: "#FF6B35", background: "#FFE8DC" }}>
-                    <ShieldCheck size={10} /> Admin
-                  </span>
-                )}
+            <Link href={`/profile/${m.username}`} className="flex items-center gap-3 flex-1 min-w-0">
+              <img src={m.avatar_url || `https://picsum.photos/seed/${m.username}/200/200`} alt="" className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
+              <div className="min-w-0">
+                <div className="text-[13.5px] font-semibold flex items-center gap-1.5">
+                  <span className="truncate">{m.username}</span>
+                  {m.id === currentUserId && <span className="text-inksoft font-normal flex-shrink-0">(you)</span>}
+                  {m.isAdmin && (
+                    <span className="flex items-center gap-0.5 text-[10px] font-mono px-1.5 py-0.5 rounded-full flex-shrink-0" style={{ color: "#FF6B35", background: "#FFE8DC" }}>
+                      <ShieldCheck size={10} /> Admin
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
+            </Link>
             {isAdmin && m.id !== currentUserId && (
               <div className="flex items-center gap-3 flex-shrink-0">
                 {!m.isAdmin && (
