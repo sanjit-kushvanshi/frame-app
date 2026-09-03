@@ -38,7 +38,7 @@ export default async function InboxPage() {
 
   const allConvoIds = [...oneOnOne.map((c) => c.id), ...(groupConvos || []).map((c) => c.id)];
   const { data: lastMessages } = allConvoIds.length
-    ? await supabase.from("messages").select("conversation_id, text, media_type, sender_id, created_at, shared_post_id").in("conversation_id", allConvoIds).order("created_at", { ascending: false })
+    ? await supabase.from("messages").select("conversation_id, text, media_type, sender_id, created_at, shared_post_id, view_once, viewed_at").in("conversation_id", allConvoIds).order("created_at", { ascending: false })
     : { data: [] };
 
   const getPreviewText = (message, currentUserId) => {
