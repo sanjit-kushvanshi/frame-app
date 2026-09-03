@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, SendHorizontal, ImagePlus, X, Smile, Clapperboard, CornerUpLeft, CornerUpRight, Pencil, Trash2, Heart, Mic, Square, Play, Pause, Copy, Download } from "lucide-react";
+import { ChevronLeft, SendHorizontal, ImagePlus, X, Smile, Clapperboard, CornerUpLeft, CornerUpRight, Pencil, Trash2, Heart, Mic, Square, Play, Pause, Copy, Download, Eye, EyeOff } from "lucide-react";
 import { compressImage, checkVideoSize } from "@/lib/mediaCompress";
 import { createClient } from "@/lib/supabase/client";
 import Avatar from "@/components/Avatar";
@@ -157,6 +157,8 @@ export default function ChatThread({
   const [forwardList, setForwardList] = useState([]);
   const [forwardLoading, setForwardLoading] = useState(false);
   const [forwardSentTo, setForwardSentTo] = useState(new Set());
+  const [viewOnceMode, setViewOnceMode] = useState(false);
+  const [revealedOnce, setRevealedOnce] = useState(new Set());
   const scrollRef = useRef(null);
   const fileInputRef = useRef(null);
   const messagesRef = useRef(messages);
@@ -428,12 +430,19 @@ export default function ChatThread({
         });
       }
     } else {
-      newRows.push({ conversation_id: conversationId, sender_id: currentUserId, text: trimmed, reply_to_id: replyingTo?.id || null });
+      newRows.push({
+        conversation_id: conversationId,
+        sender_id: currentUserId,
+        text: trimmed,
+        reply_to_id: replyingTo?.id || null,
+        ...(viewOnceMode ? { view_once: true } : {}),
+      });
     }
 
     setText("");
     setPendingFiles([]);
     setReplyingTo(null);
+    setViewOnceMode(false);
 
     const { data, error } = await supabase.from("messages").insert(newRows).select();
 
@@ -446,6 +455,22 @@ if (!error && data) {
         const ids = new Set(prev.map((m) => m.id));
         return [...prev, ...data.filter((m) => !ids.has(m.id))];
       });
+    }
+  };
+
+  const openViewOnce = async (m) => {
+    setRevealedOnce((prev) => new Set(prev).add(m.id));
+    if (!m.viewed_at) {
+      const nowIso = new Date().toISOString();
+      const { data, error } = await supabase
+        .from("messages")
+        .update({ viewed_at: nowIso })
+        .eq("id", m.id)
+        .select()
+        .single();
+      if (!error && data) {
+        setMessages((prev) => prev.map((x) => (x.id === data.id ? { ...x, ...data } : x)));
+      }
     }
   };
 
@@ -548,6 +573,7 @@ if (!error && data) {
     const m = actionSheetFor;
     setActionSheetFor(null);
     if (!m) return;
+    if (m.view_once && m.sender_id !== currentUserId && !m.viewed_at) return;
     const value = m.media_url || m.text || "";
     if (!value) return;
     try {
@@ -671,6 +697,14 @@ if (!error && data) {
 
   const findMessage = (id) => messages.find((m) => m.id === id);
 
+  const previewText = (msg) => {
+    if (!msg) return "";
+    if (msg.deleted) return "Message unsent";
+    const locked = msg.view_once && msg.sender_id !== currentUserId && !msg.viewed_at && !revealedOnce.has(msg.id);
+    if (locked) return "View once message";
+    return msg.text || (msg.media_type === "video" ? "Video" : msg.media_type === "voice" ? "Voice message" : "Photo");
+  };
+
   return (
     <div className="flex flex-col h-screen">
       <div className="flex items-center gap-2.5 px-4 py-3.5 border-b border-hairline">
@@ -710,6 +744,8 @@ if (!error && data) {
           const replied = m.reply_to_id ? findMessage(m.reply_to_id) : null;
           const isMe = m.sender_id === currentUserId;
           const sender = isGroup && !isMe ? profileById(m.sender_id) : null;
+          const viewOnceLocked = m.view_once && !isMe && !m.viewed_at && !revealedOnce.has(m.id);
+          const viewOnceOpened = m.view_once && !isMe && m.viewed_at && !revealedOnce.has(m.id);
 
           if (m.deleted) {
             return (
@@ -767,9 +803,34 @@ if (!error && data) {
                   </div>
                 </div>
               ) : (
-                <div {...pressHandlers(m)} onContextMenu={(e) => e.preventDefault()} className={`flex ${isMe ? "justify-end" : "justify-start"} flex-shrink-0`}>
+                <div
+                  {...(viewOnceLocked ? {} : pressHandlers(m))}
+                  onClick={viewOnceLocked ? () => openViewOnce(m) : undefined}
+                  onContextMenu={(e) => e.preventDefault()}
+                  className={`flex ${isMe ? "justify-end" : "justify-start"} flex-shrink-0`}
+                >
                   {m.media_type === "sticker" ? (
                     <div className="text-5xl leading-none px-1">{m.text}</div>
+                  ) : viewOnceLocked ? (
+                    <div
+                      className="flex items-center gap-2 text-[13px] cursor-pointer"
+                      style={{ background: "#1C1A17", color: "#fff", padding: "9px 16px", borderRadius: "20px" }}
+                    >
+                      <Eye size={15} /> View once
+                    </div>
+                  ) : viewOnceOpened ? (
+                    <div
+                      className="flex items-center gap-2 text-[13px] italic opacity-60"
+                      style={{
+                        background: "#fff",
+                        border: "1px solid #DCD6C8",
+                        color: "#1C1A17",
+                        padding: "9px 16px",
+                        borderRadius: "20px",
+                      }}
+                    >
+                      <EyeOff size={15} /> Opened
+                    </div>
                   ) : (
                     <div
                       className="text-[13.5px] leading-snug flex-shrink-0"
@@ -792,9 +853,7 @@ if (!error && data) {
                           className="text-[11px] mb-1.5 px-2 py-1 rounded-lg opacity-75 border-l-2"
                           style={{ borderColor: "#FF6B35", background: isMe ? "rgba(255,255,255,0.1)" : "#F7F4EE" }}
                         >
-                          {replied.deleted
-                            ? "Message unsent"
-                            : replied.text || (replied.media_type === "video" ? "Video" : replied.media_type === "voice" ? "Voice message" : "Photo")}
+                          {previewText(replied)}
                         </div>
                       )}
                       {m.media_url && (m.media_type === "image" || m.media_type === "gif") && (
@@ -821,6 +880,11 @@ if (!error && data) {
                       {m.edited_at && <div className="text-[10px] opacity-60 mt-0.5">(edited)</div>}
                     </div>
                   )}
+                </div>
+              )}
+              {m.view_once && isMe && (
+                <div className="text-[10px] text-inksoft mt-1 flex items-center gap-1">
+                  <Eye size={11} /> {m.viewed_at ? "Opened" : "Sent · View once"}
                 </div>
               )}
               {Object.keys(counts).length > 0 && (
@@ -958,7 +1022,7 @@ if (!error && data) {
       {replyingTo && (
         <div className="flex items-center justify-between px-4 py-2 border-t border-hairline bg-paperdim">
           <div className="text-[12px] text-inksoft truncate">
-            Replying to: {replyingTo.text || (replyingTo.media_type === "video" ? "Video" : replyingTo.media_type === "voice" ? "Voice message" : "Photo")}
+            Replying to: {previewText(replyingTo)}
           </div>
           <button onClick={() => setReplyingTo(null)}><X size={16} /></button>
         </div>
@@ -1008,6 +1072,12 @@ if (!error && data) {
               </button>
             </div>
           ))}
+        </div>
+      )}
+
+      {viewOnceMode && pendingFiles.length === 0 && !recording && (
+        <div className="px-4 pt-2 text-[11px] text-amber font-mono flex items-center gap-1">
+          <Eye size={12} /> Next message will be view once
         </div>
       )}
 
@@ -1064,13 +1134,23 @@ if (!error && data) {
           >
             <Clapperboard size={22} strokeWidth={1.6} color={gifPickerOpen ? "#FF6B35" : "#1C1A17"} />
           </button>
+          {pendingFiles.length === 0 && (
+            <button
+              onClick={() => setViewOnceMode((v) => !v)}
+              className="flex-shrink-0"
+              aria-label="Toggle view once"
+            >
+              {viewOnceMode ? <Eye size={22} strokeWidth={1.6} color="#FF6B35" /> : <EyeOff size={22} strokeWidth={1.6} color="#1C1A17" />}
+            </button>
+          )}
           <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple onChange={handleFiles} className="hidden" />
           <input
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && send()}
-            placeholder="Message..."
-            className="flex-1 border border-hairline rounded-full px-3.5 py-2.5 text-[13.5px] bg-white outline-none"
+            placeholder={viewOnceMode ? "View once message..." : "Message..."}
+            className="flex-1 border rounded-full px-3.5 py-2.5 text-[13.5px] bg-white outline-none"
+            style={{ borderColor: viewOnceMode ? "#FF6B35" : "#DCD6C8" }}
           />
           {text.trim() || pendingFiles.length > 0 ? (
             <button
