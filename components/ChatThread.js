@@ -736,8 +736,8 @@ if (!error && data) {
           const replied = m.reply_to_id ? findMessage(m.reply_to_id) : null;
           const isMe = m.sender_id === currentUserId;
           const sender = isGroup && !isMe ? profileById(m.sender_id) : null;
-          const viewOnceLocked = m.view_once && !isMe && !myViewedOnceIds.has(m.id);
-          const viewOnceOpened = m.view_once && !isMe && myViewedOnceIds.has(m.id);
+          const viewOnceLocked = m.view_once && !isMe && !myViewedOnceIds.has(m.id) && revealedId !== m.id;
+          const viewOnceOpened = m.view_once && !isMe && myViewedOnceIds.has(m.id) && revealedId !== m.id;
 
           if (m.deleted) {
             return (
