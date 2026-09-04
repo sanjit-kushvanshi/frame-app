@@ -37,7 +37,7 @@ export default async function InboxPage() {
 
   const allConvoIds = [...oneOnOne.map((c) => c.id), ...(groupConvos || []).map((c) => c.id)];
   const { data: lastMessages } = allConvoIds.length
-    ? await supabase.from("messages").select("conversation_id, text, media_type, sender_id, created_at, shared_post_id, view_once, viewed_at").in("conversation_id", allConvoIds).order("created_at", { ascending: false })
+    ? await supabase.from("messages").select("id, conversation_id, text, media_type, sender_id, created_at, shared_post_id, view_once, viewed_at").in("conversation_id", allConvoIds).order("created_at", { ascending: false })
     : { data: [] };
 
   const viewOnceIds = (lastMessages || [])
@@ -73,11 +73,7 @@ export default async function InboxPage() {
     const prefix = message.sender_id === currentUserId ? "You: " : "";
 
     if (message.view_once && message.sender_id !== currentUserId) {
-      // Find this exact message's id among the view-once rows fetched for its conversation,
-      // matched by conversation since `message` here lacks an id (we only selected summary columns).
-      const candidateIds = idByConvoAndTime[message.conversation_id] || [];
-      const viewedByMe = candidateIds.some((id) => myReadIds.has(id));
-      if (!viewedByMe) return "View once message";
+      return myReadIds.has(message.id) ? "Opened" : "View once message";
     }
 
     if (message.text && message.media_type !== "sticker") {
