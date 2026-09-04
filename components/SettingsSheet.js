@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
 import { createClient } from "@/lib/supabase/client";
 
@@ -54,7 +55,6 @@ export default function SettingsSheet({ open, onClose }) {
       data: { user },
     } = await supabase.auth.getUser();
 
-    // Re-verify current password before allowing the change
     const { error: verifyError } = await supabase.auth.signInWithPassword({
       email: user.email,
       password: currentPassword,
@@ -196,6 +196,15 @@ export default function SettingsSheet({ open, onClose }) {
               </div>
             )}
           </div>
+        </div>
+
+        <div className="mb-6">
+          <div className="text-[11px] font-mono text-inksoft uppercase tracking-wide mb-2">
+            Support
+          </div>
+          <Link href="/report" onClick={onClose} className="block text-sm text-ink py-2">
+            Report a problem
+          </Link>
         </div>
 
         <button
