@@ -461,8 +461,9 @@ if (!error && data) {
   };
 
   const openViewOnce = async (m) => {
-    setMyViewedOnceIds((prev) => new Set(prev).add(m.id));
+    setRevealedId(m.id);
     await supabase.rpc("mark_view_once_viewed", { message_id_input: m.id });
+    setMyViewedOnceIds((prev) => new Set(prev).add(m.id));
   };
 
   const openActionSheet = (m) => {
