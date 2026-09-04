@@ -68,6 +68,7 @@ function VoiceMessage({ url, isMe }) {
   const [playing, setPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+  const [revealedId, setRevealedId] = useState(null);
 
   const toggle = (e) => {
     e.stopPropagation();
