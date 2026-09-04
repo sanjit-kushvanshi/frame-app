@@ -68,7 +68,6 @@ function VoiceMessage({ url, isMe }) {
   const [playing, setPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
-  const [revealedId, setRevealedId] = useState(null);
 
   const toggle = (e) => {
     e.stopPropagation();
@@ -161,6 +160,7 @@ export default function ChatThread({
   const [forwardSentTo, setForwardSentTo] = useState(new Set());
   const [viewOnceMode, setViewOnceMode] = useState(false);
   const [myViewedOnceIds, setMyViewedOnceIds] = useState(new Set(viewedOnceIds || []));
+  const [revealedId, setRevealedId] = useState(null);
   const scrollRef = useRef(null);
   const fileInputRef = useRef(null);
   const messagesRef = useRef(messages);
@@ -737,7 +737,7 @@ if (!error && data) {
           const isMe = m.sender_id === currentUserId;
           const sender = isGroup && !isMe ? profileById(m.sender_id) : null;
           const viewOnceLocked = m.view_once && !isMe && !myViewedOnceIds.has(m.id) && revealedId !== m.id;
-const viewOnceOpened = m.view_once && !isMe && myViewedOnceIds.has(m.id) && revealedId !== m.id;
+          const viewOnceOpened = m.view_once && !isMe && myViewedOnceIds.has(m.id) && revealedId !== m.id;
 
           if (m.deleted) {
             return (
