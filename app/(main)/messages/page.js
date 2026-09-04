@@ -13,7 +13,6 @@ export default async function InboxPage() {
     .or(`user_a.eq.${user.id},user_b.eq.${user.id}`);
 
   const oneOnOne = (directConvos || []).filter((c) => !c.is_group);
-
   const otherIds = oneOnOne.map((c) => (c.user_a === user.id ? c.user_b : c.user_a));
   const { data: profiles } = otherIds.length
     ? await supabase.from("profiles").select("id, username, avatar_url").in("id", otherIds)
@@ -41,20 +40,52 @@ export default async function InboxPage() {
     ? await supabase.from("messages").select("conversation_id, text, media_type, sender_id, created_at, shared_post_id, view_once, viewed_at").in("conversation_id", allConvoIds).order("created_at", { ascending: false })
     : { data: [] };
 
+  const viewOnceIds = (lastMessages || [])
+    .filter((m) => m.view_once)
+    .map((m) => `${m.conversation_id}`);
+  const viewOnceMessageConvoIds = (lastMessages || []).filter((m) => m.view_once).map((m) => m.conversation_id);
+
+  // We need the message ids, not conversation ids, for the reads lookup.
+  // Re-derive properly below using the actual message rows.
+  const viewOnceMsgRows = (lastMessages || []).filter((m) => m.view_once);
+  const { data: allViewOnceMessages } = viewOnceMsgRows.length
+    ? await supabase
+        .from("messages")
+        .select("id, conversation_id")
+        .in("conversation_id", viewOnceMessageConvoIds)
+        .eq("view_once", true)
+    : { data: [] };
+
+  const relevantMessageIds = (allViewOnceMessages || []).map((m) => m.id);
+  const { data: myReads } = relevantMessageIds.length
+    ? await supabase.from("message_view_once_reads").select("message_id").eq("user_id", user.id).in("message_id", relevantMessageIds)
+    : { data: [] };
+  const myReadIds = new Set((myReads || []).map((r) => r.message_id));
+
+  const idByConvoAndTime = {};
+  (allViewOnceMessages || []).forEach((m) => {
+    idByConvoAndTime[m.conversation_id] = idByConvoAndTime[m.conversation_id] || [];
+    idByConvoAndTime[m.conversation_id].push(m.id);
+  });
+
   const getPreviewText = (message, currentUserId) => {
     if (!message) return "Say hello";
     const prefix = message.sender_id === currentUserId ? "You: " : "";
-    if (message.view_once && message.sender_id !== currentUserId && !message.viewed_at) {
-      return "Sent a message";
+
+    if (message.view_once && message.sender_id !== currentUserId) {
+      // Find this exact message's id among the view-once rows fetched for its conversation,
+      // matched by conversation since `message` here lacks an id (we only selected summary columns).
+      const candidateIds = idByConvoAndTime[message.conversation_id] || [];
+      const viewedByMe = candidateIds.some((id) => myReadIds.has(id));
+      if (!viewedByMe) return "View once message";
     }
+
     if (message.text && message.media_type !== "sticker") {
       return prefix + message.text;
     }
-    
     if (message.shared_post_id) {
       return prefix + "Sent a post";
     }
-    
     switch (message.media_type) {
       case "voice":
         return prefix + "Sent a voice note";
@@ -110,11 +141,13 @@ export default async function InboxPage() {
         <div className="font-display italic text-[17px]">Messages</div>
         <Link href="/messages/new"><SquarePen size={20} /></Link>
       </div>
+
       {enriched.length === 0 && (
         <div className="px-4 py-10 text-center text-inksoft text-sm">
           No conversations yet. Tap the icon above to start one.
         </div>
       )}
+
       {enriched.map((c) =>
         c.isGroup ? (
           <Link key={c.id} href={`/messages/${c.id}`} className="flex items-center gap-3 px-4 py-3 border-b border-hairline">
