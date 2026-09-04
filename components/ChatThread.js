@@ -131,6 +131,7 @@ export default function ChatThread({
   participants,
   initialMessages,
   initialReactions,
+  viewedOnceIds,
 }) {
   const supabase = createClient();
   const router = useRouter();
@@ -158,7 +159,7 @@ export default function ChatThread({
   const [forwardLoading, setForwardLoading] = useState(false);
   const [forwardSentTo, setForwardSentTo] = useState(new Set());
   const [viewOnceMode, setViewOnceMode] = useState(false);
-  const [revealedId, setRevealedId] = useState(null);
+  const [myViewedOnceIds, setMyViewedOnceIds] = useState(new Set(viewedOnceIds || []));
   const scrollRef = useRef(null);
   const fileInputRef = useRef(null);
   const messagesRef = useRef(messages);
@@ -459,11 +460,8 @@ if (!error && data) {
   };
 
   const openViewOnce = async (m) => {
-    setRevealedId(m.id);
-    const { data, error } = await supabase.rpc("mark_view_once_viewed", { message_id_input: m.id });
-    if (!error && data && data[0]) {
-      setMessages((prev) => prev.map((x) => (x.id === data[0].id ? { ...x, ...data[0] } : x)));
-    }
+    setMyViewedOnceIds((prev) => new Set(prev).add(m.id));
+    await supabase.rpc("mark_view_once_viewed", { message_id_input: m.id });
   };
 
   const openActionSheet = (m) => {
@@ -565,7 +563,7 @@ if (!error && data) {
     const m = actionSheetFor;
     setActionSheetFor(null);
     if (!m) return;
-    if (m.view_once && m.sender_id !== currentUserId && !m.viewed_at) return;
+    if (m.view_once) return;
     const value = m.media_url || m.text || "";
     if (!value) return;
     try {
@@ -576,7 +574,7 @@ if (!error && data) {
   const openForward = async () => {
     const m = actionSheetFor;
     setActionSheetFor(null);
-    if (!m) return;
+    if (!m || m.view_once) return;
     setForwardFor(m);
     setForwardLoading(true);
     setForwardSentTo(new Set());
@@ -692,7 +690,7 @@ if (!error && data) {
   const previewText = (msg) => {
     if (!msg) return "";
     if (msg.deleted) return "Message unsent";
-    const locked = msg.view_once && msg.sender_id !== currentUserId && !msg.viewed_at;
+    const locked = msg.view_once && msg.sender_id !== currentUserId && !myViewedOnceIds.has(msg.id);
     if (locked) return "View once message";
     return msg.text || (msg.media_type === "video" ? "Video" : msg.media_type === "voice" ? "Voice message" : "Photo");
   };
@@ -736,8 +734,8 @@ if (!error && data) {
           const replied = m.reply_to_id ? findMessage(m.reply_to_id) : null;
           const isMe = m.sender_id === currentUserId;
           const sender = isGroup && !isMe ? profileById(m.sender_id) : null;
-          const viewOnceLocked = m.view_once && !isMe && !m.viewed_at && revealedId !== m.id;
-          const viewOnceOpened = m.view_once && !isMe && m.viewed_at && revealedId !== m.id;
+          const viewOnceLocked = m.view_once && !isMe && !myViewedOnceIds.has(m.id);
+          const viewOnceOpened = m.view_once && !isMe && myViewedOnceIds.has(m.id);
 
           if (m.deleted) {
             return (
@@ -912,13 +910,17 @@ if (!error && data) {
                 <button onClick={startReply} className="w-full flex items-center gap-3 px-4 py-3 text-[14px]">
                   <CornerUpLeft size={18} /> Reply
                 </button>
-                <button onClick={copyMessage} className="w-full flex items-center gap-3 px-4 py-3 text-[14px]">
-                  <Copy size={18} /> Copy
-                </button>
-                <button onClick={openForward} className="w-full flex items-center gap-3 px-4 py-3 text-[14px]">
-                  <CornerUpRight size={18} /> Forward
-                </button>
-                {actionSheetFor.sender_id === currentUserId && !actionSheetFor.media_url && (
+                {!actionSheetFor.view_once && (
+                  <button onClick={copyMessage} className="w-full flex items-center gap-3 px-4 py-3 text-[14px]">
+                    <Copy size={18} /> Copy
+                  </button>
+                )}
+                {!actionSheetFor.view_once && (
+                  <button onClick={openForward} className="w-full flex items-center gap-3 px-4 py-3 text-[14px]">
+                    <CornerUpRight size={18} /> Forward
+                  </button>
+                )}
+                {actionSheetFor.sender_id === currentUserId && !actionSheetFor.media_url && !actionSheetFor.view_once && (
                   <button onClick={startEdit} className="w-full flex items-center gap-3 px-4 py-3 text-[14px]">
                     <Pencil size={18} /> Edit
                   </button>
