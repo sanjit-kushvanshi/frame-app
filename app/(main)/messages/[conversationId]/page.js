@@ -39,6 +39,12 @@ export default async function ConversationPage({ params }) {
       ? await supabase.from("message_reactions").select("message_id, user_id, emoji").in("message_id", messageIds)
       : { data: [] };
 
+    const viewOnceIds = (messages || []).filter((m) => m.view_once).map((m) => m.id);
+    const { data: myReads } = viewOnceIds.length
+      ? await supabase.from("message_view_once_reads").select("message_id").eq("user_id", user.id).in("message_id", viewOnceIds)
+      : { data: [] };
+    const viewedOnceIds = (myReads || []).map((r) => r.message_id);
+
     return (
       <ChatThread
         conversationId={convo.id}
@@ -49,6 +55,7 @@ export default async function ConversationPage({ params }) {
         participants={participants}
         initialMessages={messages || []}
         initialReactions={reactions || []}
+        viewedOnceIds={viewedOnceIds}
       />
     );
   }
@@ -69,6 +76,12 @@ export default async function ConversationPage({ params }) {
     ? await supabase.from("message_reactions").select("message_id, user_id, emoji").in("message_id", messageIds)
     : { data: [] };
 
+  const viewOnceIds = (messages || []).filter((m) => m.view_once).map((m) => m.id);
+  const { data: myReads } = viewOnceIds.length
+    ? await supabase.from("message_view_once_reads").select("message_id").eq("user_id", user.id).in("message_id", viewOnceIds)
+    : { data: [] };
+  const viewedOnceIds = (myReads || []).map((r) => r.message_id);
+
   return (
     <ChatThread
       conversationId={convo.id}
@@ -77,6 +90,7 @@ export default async function ConversationPage({ params }) {
       other={other}
       initialMessages={messages || []}
       initialReactions={reactions || []}
+      viewedOnceIds={viewedOnceIds}
     />
   );
 }
