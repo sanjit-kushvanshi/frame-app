@@ -29,7 +29,7 @@ export default async function SinglePostPage({ params, searchParams }) {
   const [{ data: likes }, { data: saves }, { data: comments }, { count: newerCount }] = await Promise.all([
     supabase.from("likes").select("post_id, user_id").eq("post_id", post.id),
     supabase.from("saves").select("post_id, user_id").eq("user_id", user.id).eq("post_id", post.id),
-    supabase.from("comments").select("id, post_id, text, user_id, parent_id, profiles!user_id(username)").eq("post_id", post.id),
+    supabase.from("comments").select("id, post_id, text, user_id, parent_id, profiles!user_id(username, avatar_url)").eq("post_id", post.id),
     supabase
       .from("posts")
       .select("id", { count: "exact", head: true })
