@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { X, CornerUpLeft, Trash2 } from "lucide-react";
 import Avatar from "@/components/Avatar";
@@ -25,12 +25,28 @@ function renderTextWithMentions(text, onMentionClick) {
   );
 }
 
-export default function CommentsSheet({ open, onClose, comments, onAddComment, onDeleteComment, currentUserId }) {
+export default function CommentsSheet({ open, onClose, comments, onAddComment, onDeleteComment, currentUserId, highlightCommentId = null }) {
   const [text, setText] = useState("");
   const [replyingTo, setReplyingTo] = useState(null); // { id, username }
   const [deleteError, setDeleteError] = useState("");
+  const [flashId, setFlashId] = useState(null);
   const inputRef = useRef(null);
+  const scrollRef = useRef(null);
   const router = useRouter();
+
+  useEffect(() => {
+    if (!open || !highlightCommentId) return;
+    // wait for the sheet + comment list to actually paint before measuring/scrolling
+    const t = setTimeout(() => {
+      const el = document.getElementById(`comment-${highlightCommentId}`);
+      if (el && scrollRef.current) {
+        el.scrollIntoView({ block: "center", behavior: "smooth" });
+        setFlashId(highlightCommentId);
+        setTimeout(() => setFlashId(null), 2200);
+      }
+    }, 150);
+    return () => clearTimeout(t);
+  }, [open, highlightCommentId, comments]);
 
   if (!open) return null;
 
@@ -69,9 +85,15 @@ export default function CommentsSheet({ open, onClose, comments, onAddComment, o
 
   const renderComment = (c, isReply) => {
     const username = c.profiles?.username;
+    const isFlashing = flashId === c.id;
 
     return (
-      <div key={c.id} className={`py-2.5 ${isReply ? "ml-9 border-l border-hairline pl-3" : ""}`}>
+      <div
+        key={c.id}
+        id={`comment-${c.id}`}
+        className={`py-2.5 rounded-lg transition-colors duration-700 ${isReply ? "ml-9 border-l border-hairline pl-3" : ""}`}
+        style={isFlashing ? { backgroundColor: "rgba(255,107,53,0.15)" } : undefined}
+      >
         <div className="flex items-start gap-2.5">
           <Avatar
             username={username}
@@ -129,7 +151,7 @@ export default function CommentsSheet({ open, onClose, comments, onAddComment, o
         {deleteError && (
           <div className="px-4 py-1.5 text-[11px] font-mono text-amber bg-paperdim">{deleteError}</div>
         )}
-        <div className="overflow-y-auto px-4 py-2 flex-1">
+        <div ref={scrollRef} className="overflow-y-auto px-4 py-2 flex-1">
           {topLevel.length === 0 && (
             <div className="text-inksoft text-sm py-6 text-center">No notes yet. Say something about this frame.</div>
           )}
