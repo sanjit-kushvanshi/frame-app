@@ -6,11 +6,17 @@ import Avatar from "@/components/Avatar";
 
 const IMAGE_DURATION = 5000;
 
-export default function StoryViewer({ groups: initialGroups, startIndex, currentUserId, isOwnStory, onClose }) {
+export default function StoryViewer({ groups: initialGroups, startIndex, currentUserId, isOwnStory, onClose, startStoryId = null }) {
   const supabase = createClient();
   const [groups, setGroups] = useState(initialGroups);
   const [groupIndex, setGroupIndex] = useState(startIndex);
-  const [storyIndex, setStoryIndex] = useState(0);
+  const [storyIndex, setStoryIndex] = useState(() => {
+    if (startStoryId) {
+      const idx = initialGroups?.[startIndex]?.stories?.findIndex((s) => s.id === startStoryId);
+      if (idx != null && idx > -1) return idx;
+    }
+    return 0;
+  });
   const [progress, setProgress] = useState(0);
   const [paused, setPaused] = useState(false);
   const [liked, setLiked] = useState(false);
