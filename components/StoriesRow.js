@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { PlusSquare } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -7,12 +7,23 @@ import { compressImage, checkVideoSize } from "@/lib/mediaCompress";
 import StoryViewer from "@/components/StoryViewer";
 import Avatar from "@/components/Avatar";
 
-export default function StoriesRow({ myUsername, myAvatar, myStories, groups, currentUserId }) {
+export default function StoriesRow({ myUsername, myAvatar, myStories, groups, currentUserId, initialStoryId = null }) {
   const supabase = createClient();
   const router = useRouter();
   const fileInputRef = useRef(null);
   const [viewerIndex, setViewerIndex] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [pendingStoryId, setPendingStoryId] = useState(null);
+
+  useEffect(() => {
+    if (initialStoryId && myStories?.some((s) => s.id === initialStoryId)) {
+      setPendingStoryId(initialStoryId);
+      setViewerIndex(-1);
+      // clean the URL so refreshing doesn't reopen the same story
+      router.replace("/");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialStoryId]);
 
   const handleUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -97,7 +108,11 @@ export default function StoriesRow({ myUsername, myAvatar, myStories, groups, cu
           startIndex={viewerIndex === -1 ? 0 : viewerIndex}
           currentUserId={currentUserId}
           isOwnStory={viewerIndex === -1}
-          onClose={() => setViewerIndex(null)}
+          startStoryId={viewerIndex === -1 ? pendingStoryId : null}
+          onClose={() => {
+            setViewerIndex(null);
+            setPendingStoryId(null);
+          }}
         />
       )}
     </div>
