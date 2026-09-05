@@ -8,7 +8,7 @@ export default async function ActivityPage() {
 
   const { data: notifications } = await supabase
     .from("notifications")
-    .select("id, type, actor_id, post_id, comment_id, excerpt, read, created_at, profiles!notifications_actor_id_fkey(username, avatar_url)")
+    .select("id, type, actor_id, post_id, comment_id, story_id, excerpt, read, created_at, profiles!notifications_actor_id_fkey(username, avatar_url)")
     .eq("recipient_id", user.id)
     .order("created_at", { ascending: false })
     .limit(50);
@@ -25,7 +25,8 @@ export default async function ActivityPage() {
   };
 
   const hrefFor = (n) => {
-    if (n.type === "follow" || n.type === "story_like") return `/profile/${n.profiles?.username}`;
+    if (n.type === "follow") return `/profile/${n.profiles?.username}`;
+    if (n.type === "story_like") return n.story_id ? `/?story=${n.story_id}` : "/";
     if (n.type === "like" && n.post_id) return `/post/${n.post_id}`;
     if ((n.type === "comment" || n.type === "mention") && n.post_id) {
       return n.comment_id ? `/post/${n.post_id}?comment=${n.comment_id}` : `/post/${n.post_id}`;
