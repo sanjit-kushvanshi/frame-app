@@ -4,9 +4,11 @@ import { createClient } from "@/lib/supabase/server";
 import StoriesRow from "@/components/StoriesRow";
 import PostCard from "@/components/PostCard";
 
-export default async function FeedPage() {
+export default async function FeedPage({ searchParams }) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  const initialStoryId = searchParams?.story || null;
+
   const { data: myProfile } = await supabase.from("profiles").select("username, avatar_url").eq("id", user.id).single();
 
   // Find who the user follows (used for a ranking boost, not a hard filter)
@@ -50,6 +52,7 @@ export default async function FeedPage() {
   }));
 
   const myStories = enrichedStories.filter((s) => s.user_id === user.id);
+
   const otherStoriesByUser = {};
   enrichedStories
     .filter((s) => s.user_id !== user.id)
@@ -77,7 +80,6 @@ export default async function FeedPage() {
     const isFollowedOrSelf = followingIds.has(p.user_id) || p.user_id === user.id;
     const followBoost = isFollowedOrSelf ? 1.4 : 1;
     const score = recencyScore * (1 + engagementScore) * followBoost;
-
     return {
       ...p,
       likeCount,
@@ -87,7 +89,6 @@ export default async function FeedPage() {
       _score: score,
     };
   });
-
   scored.sort((a, b) => b._score - a._score);
 
   const total = scored.length;
@@ -98,7 +99,14 @@ export default async function FeedPage() {
 
   return (
     <div>
-      <StoriesRow myUsername={myProfile?.username} myAvatar={myProfile?.avatar_url} myStories={myStories} groups={storyGroups} currentUserId={user.id} />
+      <StoriesRow
+        myUsername={myProfile?.username}
+        myAvatar={myProfile?.avatar_url}
+        myStories={myStories}
+        groups={storyGroups}
+        currentUserId={user.id}
+        initialStoryId={initialStoryId}
+      />
       {enriched.map((post) => (
         <PostCard key={post.id} post={post} currentUserId={user.id} />
       ))}
