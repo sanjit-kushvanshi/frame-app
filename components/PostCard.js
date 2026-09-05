@@ -1,4 +1,5 @@
 "use client";
+
 import { useState, useRef } from "react";
 import Link from "next/link";
 import { Heart, MessageCircle, Bookmark, Send, X, MoreHorizontal, Trash2, Pencil } from "lucide-react";
@@ -6,22 +7,20 @@ import { createClient } from "@/lib/supabase/client";
 import CommentsSheet from "@/components/CommentsSheet";
 import ShareSheet from "@/components/ShareSheet";
 
-export default function PostCard({ post, currentUserId, onPostDeleted }) {
+export default function PostCard({ post, currentUserId, onPostDeleted, autoOpenComments = false, highlightCommentId = null }) {
   const supabase = createClient();
   const [liked, setLiked] = useState(post.likedByMe);
   const [likeCount, setLikeCount] = useState(post.likeCount);
   const [saved, setSaved] = useState(post.savedByMe);
   const [comments, setComments] = useState(post.comments);
-  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(autoOpenComments);
   const [shareOpen, setShareOpen] = useState(false);
   const [burst, setBurst] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const lastTap = useRef(0);
   const tapTimeout = useRef(null);
-
   const isVideo = post.media_type === "video";
   const isOwner = post.user_id === currentUserId;
-
   const [caption, setCaption] = useState(post.caption);
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
@@ -250,7 +249,9 @@ export default function PostCard({ post, currentUserId, onPostDeleted }) {
         onAddComment={addComment}
         onDeleteComment={deleteComment}
         currentUserId={currentUserId}
+        highlightCommentId={highlightCommentId}
       />
+
       <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} post={post} currentUserId={currentUserId} />
 
       {previewOpen && !isVideo && (
