@@ -38,6 +38,17 @@ export default function ReportPage() {
       },
     });
 
+    // Best-effort: also log to the reports table for the admin queue.
+    // If this fails, we don't block the user — the email already went out above.
+    if (user) {
+      await supabase.from("reports").insert({
+        reporter_id: user.id,
+        target_type: "general",
+        target_id: null,
+        reason: message,
+      });
+    }
+
     setLoading(false);
 
     if (fnError || data?.error) {
