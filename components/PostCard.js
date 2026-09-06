@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { Heart, MessageCircle, Bookmark, Send, X, MoreHorizontal, Trash2, Pencil } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, Send, X, MoreHorizontal, Trash2, Pencil, ShieldAlert } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import CommentsSheet from "@/components/CommentsSheet";
 import ShareSheet from "@/components/ShareSheet";
@@ -29,6 +29,27 @@ export default function PostCard({ post, currentUserId, onPostDeleted, autoOpenC
   const [savingEdit, setSavingEdit] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [isDeleted, setIsDeleted] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Admin check — only matters for posts that aren't the viewer's own.
+  useEffect(() => {
+    if (isOwner || !currentUserId) return;
+    let cancelled = false;
+    const checkAdmin = async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", currentUserId)
+        .single();
+      if (!cancelled && !error && data?.is_admin) {
+        setIsAdmin(true);
+      }
+    };
+    checkAdmin();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOwner, currentUserId]);
 
   const toggleLike = async () => {
     if (liked) {
@@ -116,7 +137,11 @@ export default function PostCard({ post, currentUserId, onPostDeleted, autoOpenC
 
   const confirmDelete = async () => {
     setDeleting(true);
-    const { error } = await supabase.from("posts").delete().eq("id", post.id).eq("user_id", currentUserId);
+    // Owners delete their own post via the existing RLS owner policy.
+    // Admins deleting someone else's post rely on the "Admins can delete any post"
+    // RLS policy — so we intentionally don't filter by user_id here; RLS is
+    // the real gate either way, this just avoids blocking the admin case.
+    const { error } = await supabase.from("posts").delete().eq("id", post.id);
     setDeleting(false);
     if (!error) {
       setConfirmDeleteOpen(false);
@@ -128,6 +153,8 @@ export default function PostCard({ post, currentUserId, onPostDeleted, autoOpenC
   };
 
   if (isDeleted) return null;
+
+  const canOpenMenu = isOwner || isAdmin;
 
   return (
     <div className="border-b border-hairline pb-3.5">
@@ -164,7 +191,7 @@ export default function PostCard({ post, currentUserId, onPostDeleted, autoOpenC
             )}
           </div>
         </div>
-        {isOwner && (
+        {canOpenMenu && (
           <button onClick={() => setMenuOpen(true)} aria-label="Post options" className="text-ink p-1.5">
             <MoreHorizontal size={20} strokeWidth={1.6} />
           </button>
@@ -278,13 +305,15 @@ export default function PostCard({ post, currentUserId, onPostDeleted, autoOpenC
       {menuOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-end" onClick={() => setMenuOpen(false)}>
           <div className="w-full bg-paper rounded-t-2xl overflow-hidden pb-safe" onClick={(e) => e.stopPropagation()}>
-            <button
-              onClick={startEdit}
-              className="w-full flex items-center gap-2.5 px-4 py-3.5 border-b border-hairline text-[14px]"
-            >
-              <Pencil size={18} strokeWidth={1.6} />
-              Edit caption
-            </button>
+            {isOwner && (
+              <button
+                onClick={startEdit}
+                className="w-full flex items-center gap-2.5 px-4 py-3.5 border-b border-hairline text-[14px]"
+              >
+                <Pencil size={18} strokeWidth={1.6} />
+                Edit caption
+              </button>
+            )}
             <button
               onClick={() => {
                 setMenuOpen(false);
@@ -292,8 +321,8 @@ export default function PostCard({ post, currentUserId, onPostDeleted, autoOpenC
               }}
               className="w-full flex items-center gap-2.5 px-4 py-3.5 border-b border-hairline text-[14px] text-red-500"
             >
-              <Trash2 size={18} strokeWidth={1.6} />
-              Delete post
+              {isOwner ? <Trash2 size={18} strokeWidth={1.6} /> : <ShieldAlert size={18} strokeWidth={1.6} />}
+              {isOwner ? "Delete post" : "Delete post (admin)"}
             </button>
             <button onClick={() => setMenuOpen(false)} className="w-full px-4 py-3.5 text-[14px] font-semibold">
               Cancel
@@ -306,7 +335,9 @@ export default function PostCard({ post, currentUserId, onPostDeleted, autoOpenC
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center px-6" onClick={() => setConfirmDeleteOpen(false)}>
           <div className="w-full max-w-xs bg-paper rounded-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="px-4 pt-4 pb-3 text-center">
-              <div className="text-[14px] font-semibold">Delete this post?</div>
+              <div className="text-[14px] font-semibold">
+                {isOwner ? "Delete this post?" : "Delete this user's post?"}
+              </div>
               <div className="text-[12.5px] text-inksoft pt-1">This can't be undone.</div>
             </div>
             <div className="flex border-t border-hairline">
