@@ -11,9 +11,14 @@ export default async function MainLayout({ children }) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("username")
+    .select("username, suspension_status, suspension_reason")
     .eq("id", user.id)
     .single();
+
+  if (profile?.suspension_status === "suspended") {
+    await supabase.auth.signOut();
+    redirect(`/suspended?reason=${encodeURIComponent(profile.suspension_reason || "")}`);
+  }
 
   return (
     <div className="min-h-screen flex justify-center">
