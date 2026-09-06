@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 export default function AdminPage() {
@@ -14,6 +14,7 @@ export default function AdminPage() {
   const [reports, setReports] = useState([]);
   const [loadingReports, setLoadingReports] = useState(true);
   const [error, setError] = useState("");
+  const [deletingReportId, setDeletingReportId] = useState(null);
 
   // User search state
   const [searchTerm, setSearchTerm] = useState("");
@@ -95,6 +96,22 @@ export default function AdminPage() {
     loadReports();
   };
 
+  const deleteReport = async (reportId) => {
+    setDeletingReportId(reportId);
+    const { error: deleteError } = await supabase
+      .from("reports")
+      .delete()
+      .eq("id", reportId);
+
+    setDeletingReportId(null);
+
+    if (deleteError) {
+      setError(deleteError.message);
+      return;
+    }
+    setReports((prev) => prev.filter((r) => r.id !== reportId));
+  };
+
   const handleUserSearch = async (e) => {
     e.preventDefault();
     if (!searchTerm.trim()) return;
@@ -156,13 +173,13 @@ export default function AdminPage() {
   };
 
   if (checking) {
-    return <div className="min-h-screen flex items-center justify-center text-sm text-inksoft">Checking access...</div>;
+    return <div className="flex items-center justify-center py-20 text-sm text-inksoft">Checking access...</div>;
   }
 
   if (!isAdmin) return null;
 
   return (
-    <div className="min-h-screen px-5 pt-4 pb-8">
+    <div className="px-5 pt-4 pb-8">
       <div className="flex items-center gap-2 mb-6">
         <Link href="/" className="p-1 -ml-1">
           <ChevronLeft size={22} strokeWidth={1.8} />
@@ -189,17 +206,27 @@ export default function AdminPage() {
                 <div className="text-[11px] font-mono text-inksoft">
                   {r.target_type} · {new Date(r.created_at).toLocaleString()}
                 </div>
-                <span
-                  className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${
-                    r.status === "open"
-                      ? "bg-amber/15 text-amber"
-                      : r.status === "reviewed"
-                      ? "bg-green-100 text-green-700"
-                      : "bg-hairline text-inksoft"
-                  }`}
-                >
-                  {r.status}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${
+                      r.status === "open"
+                        ? "bg-amber/15 text-amber"
+                        : r.status === "reviewed"
+                        ? "bg-green-100 text-green-700"
+                        : "bg-hairline text-inksoft"
+                    }`}
+                  >
+                    {r.status}
+                  </span>
+                  <button
+                    onClick={() => deleteReport(r.id)}
+                    disabled={deletingReportId === r.id}
+                    aria-label="Delete report"
+                    className="text-inksoft disabled:opacity-40"
+                  >
+                    <Trash2 size={15} strokeWidth={1.6} />
+                  </button>
+                </div>
               </div>
               <div className="text-sm text-ink mb-1">
                 Reported by <span className="font-semibold">@{r.reporterUsername}</span>
