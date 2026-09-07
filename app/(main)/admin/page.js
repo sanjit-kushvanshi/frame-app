@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import Avatar from "@/components/Avatar";
 
 export default function AdminPage() {
   const supabase = createClient();
@@ -31,18 +32,15 @@ export default function AdminPage() {
         router.push("/login");
         return;
       }
-
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("is_admin")
         .eq("id", user.id)
         .single();
-
       if (profileError || !profile?.is_admin) {
         router.push("/");
         return;
       }
-
       setIsAdmin(true);
       setChecking(false);
       loadReports();
@@ -53,18 +51,15 @@ export default function AdminPage() {
   const loadReports = async () => {
     setLoadingReports(true);
     setError("");
-
     const { data, error: reportsError } = await supabase
       .from("reports")
       .select("*")
       .order("created_at", { ascending: false });
-
     if (reportsError) {
       setError(reportsError.message);
       setLoadingReports(false);
       return;
     }
-
     const reporterIds = [...new Set(data.map((r) => r.reporter_id).filter(Boolean))];
     let profileMap = {};
     if (reporterIds.length > 0) {
@@ -74,10 +69,7 @@ export default function AdminPage() {
         .in("id", reporterIds);
       profileMap = Object.fromEntries((profiles || []).map((p) => [p.id, p.username]));
     }
-
-    setReports(
-      data.map((r) => ({ ...r, reporterUsername: profileMap[r.reporter_id] || "unknown" }))
-    );
+    setReports(data.map((r) => ({ ...r, reporterUsername: profileMap[r.reporter_id] || "unknown" })));
     setLoadingReports(false);
   };
 
@@ -87,7 +79,6 @@ export default function AdminPage() {
       .from("reports")
       .update({ status, reviewed_at: new Date().toISOString(), reviewed_by: user.id })
       .eq("id", reportId);
-
     if (updateError) {
       setError(updateError.message);
       return;
@@ -97,13 +88,8 @@ export default function AdminPage() {
 
   const deleteReport = async (reportId) => {
     setDeletingReportId(reportId);
-    const { error: deleteError } = await supabase
-      .from("reports")
-      .delete()
-      .eq("id", reportId);
-
+    const { error: deleteError } = await supabase.from("reports").delete().eq("id", reportId);
     setDeletingReportId(null);
-
     if (deleteError) {
       setError(deleteError.message);
       return;
@@ -117,19 +103,16 @@ export default function AdminPage() {
     setSearching(true);
     setSelectedUser(null);
     setUserActionMsg("");
-
     const { data, error: searchError } = await supabase
       .from("profiles")
-      .select("id, username, is_admin, suspension_status, suspension_reason")
+      .select("id, username, avatar_url, is_admin, suspension_status, suspension_reason")
       .ilike("username", `%${searchTerm.trim()}%`)
       .limit(10);
-
     if (searchError) {
       setError(searchError.message);
       setSearching(false);
       return;
     }
-
     setSearchResults(data || []);
     setSearching(false);
   };
@@ -144,7 +127,6 @@ export default function AdminPage() {
     if (!selectedUser) return;
     setUserActionLoading(true);
     setUserActionMsg("");
-
     const { data: { user } } = await supabase.auth.getUser();
     const previousStatus = selectedUser.suspension_status;
 
@@ -164,16 +146,9 @@ export default function AdminPage() {
       return;
     }
 
-    // Notify the user of this moderation action — but only if the status
-    // actually changed, so re-saving the same reason text doesn't spam them.
     if (previousStatus !== status) {
       const notifType =
-        status === "suspended"
-          ? "account_suspended"
-          : status === "restricted"
-          ? "account_restricted"
-          : "account_restored";
-
+        status === "suspended" ? "account_suspended" : status === "restricted" ? "account_restricted" : "account_restored";
       const excerpt =
         status === "none"
           ? "Your account restrictions have been lifted."
@@ -186,24 +161,18 @@ export default function AdminPage() {
         type: notifType,
         excerpt,
       });
-
-      if (notifError) {
-        console.error("Notify user of suspension change failed:", notifError.message);
-      }
+      if (notifError) console.error("Notify user of suspension change failed:", notifError.message);
     }
 
     setUserActionLoading(false);
     setUserActionMsg(`Status updated to "${status}".`);
     setSelectedUser({ ...selectedUser, suspension_status: status });
-    setSearchResults((prev) =>
-      prev.map((u) => (u.id === selectedUser.id ? { ...u, suspension_status: status } : u))
-    );
+    setSearchResults((prev) => prev.map((u) => (u.id === selectedUser.id ? { ...u, suspension_status: status } : u)));
   };
 
   if (checking) {
     return <div className="flex items-center justify-center py-20 text-sm text-inksoft">Checking access...</div>;
   }
-
   if (!isAdmin) return null;
 
   return (
@@ -236,21 +205,12 @@ export default function AdminPage() {
                 <div className="flex items-center gap-2">
                   <span
                     className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${
-                      r.status === "open"
-                        ? "bg-amber/15 text-amber"
-                        : r.status === "reviewed"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-hairline text-inksoft"
+                      r.status === "open" ? "bg-amber/15 text-amber" : r.status === "reviewed" ? "bg-green-100 text-green-700" : "bg-hairline text-inksoft"
                     }`}
                   >
                     {r.status}
                   </span>
-                  <button
-                    onClick={() => deleteReport(r.id)}
-                    disabled={deletingReportId === r.id}
-                    aria-label="Delete report"
-                    className="text-inksoft disabled:opacity-40"
-                  >
+                  <button onClick={() => deleteReport(r.id)} disabled={deletingReportId === r.id} aria-label="Delete report" className="text-inksoft disabled:opacity-40">
                     <Trash2 size={15} strokeWidth={1.6} />
                   </button>
                 </div>
@@ -261,16 +221,10 @@ export default function AdminPage() {
               {r.reason && <div className="text-sm text-inksoft mb-2">{r.reason}</div>}
               {r.status === "open" && (
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => updateStatus(r.id, "reviewed")}
-                    className="flex-1 bg-ink text-white rounded-lg py-1.5 text-xs font-semibold"
-                  >
+                  <button onClick={() => updateStatus(r.id, "reviewed")} className="flex-1 bg-ink text-white rounded-lg py-1.5 text-xs font-semibold">
                     Mark reviewed
                   </button>
-                  <button
-                    onClick={() => updateStatus(r.id, "dismissed")}
-                    className="flex-1 border border-hairline rounded-lg py-1.5 text-xs"
-                  >
+                  <button onClick={() => updateStatus(r.id, "dismissed")} className="flex-1 border border-hairline rounded-lg py-1.5 text-xs">
                     Dismiss
                   </button>
                 </div>
@@ -280,9 +234,7 @@ export default function AdminPage() {
         </div>
       )}
 
-      <div className="text-[11px] font-mono text-inksoft uppercase tracking-wide mb-3">
-        Users
-      </div>
+      <div className="text-[11px] font-mono text-inksoft uppercase tracking-wide mb-3">Users</div>
 
       <form onSubmit={handleUserSearch} className="flex gap-2 mb-3">
         <input
@@ -292,11 +244,7 @@ export default function AdminPage() {
           onChange={(e) => setSearchTerm(e.target.value)}
           className="flex-1 border border-hairline rounded-lg px-3 py-2 text-sm bg-white outline-none"
         />
-        <button
-          type="submit"
-          disabled={searching}
-          className="bg-ink text-white rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50"
-        >
+        <button type="submit" disabled={searching} className="bg-ink text-white rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50">
           {searching ? "..." : "Search"}
         </button>
       </form>
@@ -304,26 +252,21 @@ export default function AdminPage() {
       {searchResults.length > 0 && !selectedUser && (
         <div className="space-y-2 mb-4">
           {searchResults.map((u) => (
-            <button
-              key={u.id}
-              onClick={() => selectUser(u)}
-              className="w-full text-left border border-hairline rounded-lg p-3 flex justify-between items-center"
-            >
-              <div>
-                <span className="text-sm font-semibold">@{u.username}</span>
-                {u.is_admin && <span className="ml-2 text-[10px] font-mono text-amber">ADMIN</span>}
+            <button key={u.id} onClick={() => selectUser(u)} className="w-full text-left border border-hairline rounded-lg p-3 flex items-center gap-3">
+              <Avatar username={u.username} avatarUrl={u.avatar_url} size={32} className="flex-shrink-0" />
+              <div className="flex-1 flex justify-between items-center">
+                <div>
+                  <span className="text-sm font-semibold">@{u.username}</span>
+                  {u.is_admin && <span className="ml-2 text-[10px] font-mono text-amber">ADMIN</span>}
+                </div>
+                <span
+                  className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${
+                    u.suspension_status === "none" ? "bg-hairline text-inksoft" : u.suspension_status === "restricted" ? "bg-amber/15 text-amber" : "bg-red-100 text-red-700"
+                  }`}
+                >
+                  {u.suspension_status}
+                </span>
               </div>
-              <span
-                className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${
-                  u.suspension_status === "none"
-                    ? "bg-hairline text-inksoft"
-                    : u.suspension_status === "restricted"
-                    ? "bg-amber/15 text-amber"
-                    : "bg-red-100 text-red-700"
-                }`}
-              >
-                {u.suspension_status}
-              </span>
             </button>
           ))}
         </div>
@@ -332,11 +275,11 @@ export default function AdminPage() {
       {selectedUser && (
         <div className="border border-hairline rounded-lg p-4 mb-6">
           <div className="flex justify-between items-center mb-3">
-            <div className="text-sm font-semibold">@{selectedUser.username}</div>
-            <button
-              onClick={() => setSelectedUser(null)}
-              className="text-xs text-inksoft font-mono"
-            >
+            <div className="flex items-center gap-2.5">
+              <Avatar username={selectedUser.username} avatarUrl={selectedUser.avatar_url} size={32} />
+              <div className="text-sm font-semibold">@{selectedUser.username}</div>
+            </div>
+            <button onClick={() => setSelectedUser(null)} className="text-xs text-inksoft font-mono">
               Close
             </button>
           </div>
@@ -354,25 +297,13 @@ export default function AdminPage() {
           />
 
           <div className="grid grid-cols-3 gap-2 mb-2">
-            <button
-              onClick={() => applySuspension("none")}
-              disabled={userActionLoading}
-              className="border border-hairline rounded-lg py-2 text-xs font-semibold disabled:opacity-50"
-            >
+            <button onClick={() => applySuspension("none")} disabled={userActionLoading} className="border border-hairline rounded-lg py-2 text-xs font-semibold disabled:opacity-50">
               Clear
             </button>
-            <button
-              onClick={() => applySuspension("restricted")}
-              disabled={userActionLoading}
-              className="bg-amber text-white rounded-lg py-2 text-xs font-semibold disabled:opacity-50"
-            >
+            <button onClick={() => applySuspension("restricted")} disabled={userActionLoading} className="bg-amber text-white rounded-lg py-2 text-xs font-semibold disabled:opacity-50">
               Restrict
             </button>
-            <button
-              onClick={() => applySuspension("suspended")}
-              disabled={userActionLoading}
-              className="bg-red-600 text-white rounded-lg py-2 text-xs font-semibold disabled:opacity-50"
-            >
+            <button onClick={() => applySuspension("suspended")} disabled={userActionLoading} className="bg-red-600 text-white rounded-lg py-2 text-xs font-semibold disabled:opacity-50">
               Suspend
             </button>
           </div>
