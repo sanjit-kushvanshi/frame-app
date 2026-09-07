@@ -11,9 +11,12 @@ export default function TopBar({ currentUserId }) {
   const pathname = usePathname();
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifUnreadCount, setNotifUnreadCount] = useState(0);
+  const [confirmingLogout, setConfirmingLogout] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const myConvoIdsRef = useRef(new Set());
 
   const handleLogout = async () => {
+    setLoggingOut(true);
     await supabase.auth.signOut();
     router.push("/login");
     router.refresh();
@@ -104,7 +107,7 @@ export default function TopBar({ currentUserId }) {
   return (
     <div className="sticky top-0 z-20 bg-paper border-b border-hairline">
       <div className="flex items-center justify-between px-4 pt-3.5 pb-2.5">
-        <button onClick={handleLogout} aria-label="Log out" className="text-ink p-1">
+        <button onClick={() => setConfirmingLogout(true)} aria-label="Log out" className="text-ink p-1">
           <LogOut size={18} strokeWidth={1.6} />
         </button>
         <div className="font-display italic font-semibold text-2xl text-ink">Frame</div>
@@ -136,6 +139,34 @@ export default function TopBar({ currentUserId }) {
           <div key={i} className="w-[5px] h-[5px] rounded-sm bg-hairline" />
         ))}
       </div>
+
+      {confirmingLogout && (
+        <div
+          className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-6"
+          onClick={() => !loggingOut && setConfirmingLogout(false)}
+        >
+          <div onClick={(e) => e.stopPropagation()} className="bg-paper rounded-2xl p-5 w-full max-w-[300px] border border-hairline">
+            <div className="font-semibold text-[15px] mb-1 text-ink">Log out?</div>
+            <div className="text-inksoft text-[13px] mb-4">You'll need to sign back in to use Frame again.</div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setConfirmingLogout(false)}
+                disabled={loggingOut}
+                className="flex-1 border border-hairline rounded-lg py-2.5 text-[13px] font-semibold text-ink disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLogout}
+                disabled={loggingOut}
+                className="flex-1 bg-amber text-paper rounded-lg py-2.5 text-[13px] font-semibold disabled:opacity-50"
+              >
+                {loggingOut ? "Logging out..." : "Log out"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
