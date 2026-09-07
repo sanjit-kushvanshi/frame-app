@@ -31,7 +31,6 @@ export default function PostCard({ post, currentUserId, onPostDeleted, autoOpenC
   const [isDeleted, setIsDeleted] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // Admin check — only matters for posts that aren't the viewer's own.
   useEffect(() => {
     if (isOwner || !currentUserId) return;
     let cancelled = false;
@@ -100,7 +99,6 @@ export default function PostCard({ post, currentUserId, onPostDeleted, autoOpenC
   const deleteComment = async (id) => {
     const { error } = await supabase.from("comments").delete().eq("id", id).eq("user_id", currentUserId);
     if (!error) {
-      // remove the comment and any replies under it (mirrors the DB's ON DELETE CASCADE)
       setComments((c) => c.filter((cm) => cm.id !== id && cm.parent_id !== id));
     } else {
       console.error("Delete comment failed:", error.message);
@@ -137,13 +135,23 @@ export default function PostCard({ post, currentUserId, onPostDeleted, autoOpenC
 
   const confirmDelete = async () => {
     setDeleting(true);
-    // Owners delete their own post via the existing RLS owner policy.
-    // Admins deleting someone else's post rely on the "Admins can delete any post"
-    // RLS policy — so we intentionally don't filter by user_id here; RLS is
-    // the real gate either way, this just avoids blocking the admin case.
     const { error } = await supabase.from("posts").delete().eq("id", post.id);
     setDeleting(false);
     if (!error) {
+      // Notify the post's owner if an admin deleted someone else's post.
+      // Owner deleting their own post: no notification needed.
+      if (!isOwner && post.user_id) {
+        const { data: { user: adminUser } } = await supabase.auth.getUser();
+        const { error: notifError } = await supabase.from("notifications").insert({
+          recipient_id: post.user_id,
+          actor_id: adminUser?.id,
+          type: "post_removed",
+          excerpt: "One of your posts was removed by an admin for violating community guidelines.",
+        });
+        if (notifError) {
+          console.error("Notify user of post removal failed:", notifError.message);
+        }
+      }
       setConfirmDeleteOpen(false);
       setIsDeleted(true);
       onPostDeleted?.(post.id);
