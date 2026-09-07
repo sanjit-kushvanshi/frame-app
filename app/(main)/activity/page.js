@@ -21,6 +21,10 @@ export default async function ActivityPage() {
     if (n.type === "story_like") return "liked your story";
     if (n.type === "comment") return `left a note: "${n.excerpt}"`;
     if (n.type === "mention") return `mentioned you: "${n.excerpt}"`;
+    if (n.type === "post_removed") return n.excerpt || "removed one of your posts";
+    if (n.type === "account_restricted") return n.excerpt || "restricted your account";
+    if (n.type === "account_suspended") return n.excerpt || "suspended your account";
+    if (n.type === "account_restored") return n.excerpt || "restored your account";
     return "";
   };
 
@@ -31,8 +35,22 @@ export default async function ActivityPage() {
     if ((n.type === "comment" || n.type === "mention") && n.post_id) {
       return n.comment_id ? `/post/${n.post_id}?comment=${n.comment_id}` : `/post/${n.post_id}`;
     }
+    if (
+      n.type === "post_removed" ||
+      n.type === "account_restricted" ||
+      n.type === "account_suspended" ||
+      n.type === "account_restored"
+    ) {
+      return "/";
+    }
     return "/";
   };
+
+  const isModerationNotice = (n) =>
+    n.type === "post_removed" ||
+    n.type === "account_restricted" ||
+    n.type === "account_suspended" ||
+    n.type === "account_restored";
 
   return (
     <div className="p-4">
@@ -46,9 +64,20 @@ export default async function ActivityPage() {
           href={hrefFor(n)}
           className={`flex items-center gap-2.5 py-2.5 ${!n.read ? "font-semibold" : ""}`}
         >
-          <Avatar username={n.profiles?.username} avatarUrl={n.profiles?.avatar_url} size={36} className="flex-shrink-0" />
+          {isModerationNotice(n) ? (
+            <div className="w-9 h-9 rounded-full bg-amber/15 flex items-center justify-center flex-shrink-0 text-amber text-[15px]">
+              ⚠
+            </div>
+          ) : (
+            <Avatar username={n.profiles?.username} avatarUrl={n.profiles?.avatar_url} size={36} className="flex-shrink-0" />
+          )}
           <div className="text-[13px]">
-            <span className="font-semibold">{n.profiles?.username}</span> {labelFor(n)}
+            {isModerationNotice(n) ? (
+              <span className="font-semibold">Frame</span>
+            ) : (
+              <span className="font-semibold">{n.profiles?.username}</span>
+            )}{" "}
+            {labelFor(n)}
           </div>
         </Link>
       ))}
