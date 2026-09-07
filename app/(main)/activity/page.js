@@ -22,7 +22,7 @@ export default async function ActivityPage() {
     if (n.type === "comment") return `left a note: "${n.excerpt}"`;
     if (n.type === "mention") return `mentioned you: "${n.excerpt}"`;
     if (n.type === "post_removed") return n.excerpt || "removed one of your posts";
-    if (n.type === "account_restricted") return n.excerpt || "restricted your account";
+    if (n.type === "account_restricted") return "Your account has been restricted. Tap for details.";
     if (n.type === "account_suspended") return n.excerpt || "suspended your account";
     if (n.type === "account_restored") return n.excerpt || "restored your account";
     return "";
@@ -35,14 +35,7 @@ export default async function ActivityPage() {
     if ((n.type === "comment" || n.type === "mention") && n.post_id) {
       return n.comment_id ? `/post/${n.post_id}?comment=${n.comment_id}` : `/post/${n.post_id}`;
     }
-    if (
-      n.type === "post_removed" ||
-      n.type === "account_restricted" ||
-      n.type === "account_suspended" ||
-      n.type === "account_restored"
-    ) {
-      return "/";
-    }
+    if (n.type === "account_restricted") return "/restricted";
     return "/";
   };
 
@@ -72,11 +65,7 @@ export default async function ActivityPage() {
             <Avatar username={n.profiles?.username} avatarUrl={n.profiles?.avatar_url} size={36} className="flex-shrink-0" />
           )}
           <div className="text-[13px]">
-            {isModerationNotice(n) ? (
-              <span className="font-semibold">Frame</span>
-            ) : (
-              <span className="font-semibold">{n.profiles?.username}</span>
-            )}{" "}
+            {isModerationNotice(n) ? <span className="font-semibold">Frame</span> : <span className="font-semibold">{n.profiles?.username}</span>}{" "}
             {labelFor(n)}
           </div>
         </Link>
