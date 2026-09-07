@@ -16,7 +16,6 @@ export default function AdminPage() {
   const [error, setError] = useState("");
   const [deletingReportId, setDeletingReportId] = useState(null);
 
-  // User search state
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -147,6 +146,7 @@ export default function AdminPage() {
     setUserActionMsg("");
 
     const { data: { user } } = await supabase.auth.getUser();
+    const previousStatus = selectedUser.suspension_status;
 
     const { error: updateError } = await supabase
       .from("profiles")
@@ -158,13 +158,41 @@ export default function AdminPage() {
       })
       .eq("id", selectedUser.id);
 
-    setUserActionLoading(false);
-
     if (updateError) {
+      setUserActionLoading(false);
       setUserActionMsg(`Error: ${updateError.message}`);
       return;
     }
 
+    // Notify the user of this moderation action — but only if the status
+    // actually changed, so re-saving the same reason text doesn't spam them.
+    if (previousStatus !== status) {
+      const notifType =
+        status === "suspended"
+          ? "account_suspended"
+          : status === "restricted"
+          ? "account_restricted"
+          : "account_restored";
+
+      const excerpt =
+        status === "none"
+          ? "Your account restrictions have been lifted."
+          : suspensionReason?.trim() ||
+            (status === "suspended" ? "Your account has been suspended." : "Your account has been restricted.");
+
+      const { error: notifError } = await supabase.from("notifications").insert({
+        recipient_id: selectedUser.id,
+        actor_id: user.id,
+        type: notifType,
+        excerpt,
+      });
+
+      if (notifError) {
+        console.error("Notify user of suspension change failed:", notifError.message);
+      }
+    }
+
+    setUserActionLoading(false);
     setUserActionMsg(`Status updated to "${status}".`);
     setSelectedUser({ ...selectedUser, suspension_status: status });
     setSearchResults((prev) =>
@@ -189,7 +217,6 @@ export default function AdminPage() {
 
       {error && <div className="text-amber text-xs mb-3">{error}</div>}
 
-      {/* ---------- Reports ---------- */}
       <div className="text-[11px] font-mono text-inksoft uppercase tracking-wide mb-3">
         Reports {loadingReports ? "" : `(${reports.filter((r) => r.status === "open").length} open)`}
       </div>
@@ -253,7 +280,6 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* ---------- Users ---------- */}
       <div className="text-[11px] font-mono text-inksoft uppercase tracking-wide mb-3">
         Users
       </div>
@@ -320,7 +346,7 @@ export default function AdminPage() {
           </div>
 
           <textarea
-            placeholder="Reason (shown to user if suspended)"
+            placeholder="Reason (shown to user)"
             value={suspensionReason}
             onChange={(e) => setSuspensionReason(e.target.value)}
             rows={2}
