@@ -1,17 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 
 export default function Sheet({ open, onClose, title, children, maxHeight = "72%" }) {
   const [mounted, setMounted] = useState(open);
   const [visible, setVisible] = useState(false);
+  const raf2Ref = useRef(null);
 
   useEffect(() => {
     if (open) {
       setMounted(true);
-      const raf = requestAnimationFrame(() => setVisible(true));
-      return () => cancelAnimationFrame(raf);
+      const raf1 = requestAnimationFrame(() => {
+        raf2Ref.current = requestAnimationFrame(() => setVisible(true));
+      });
+      return () => {
+        cancelAnimationFrame(raf1);
+        if (raf2Ref.current) cancelAnimationFrame(raf2Ref.current);
+      };
     } else {
       setVisible(false);
       const t = setTimeout(() => setMounted(false), 220);
@@ -52,4 +58,4 @@ export default function Sheet({ open, onClose, title, children, maxHeight = "72%
       </div>
     </div>
   );
-          }
+}
