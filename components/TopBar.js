@@ -25,51 +25,75 @@ export default function TopBar({ currentUserId }) {
   useEffect(() => {
     if (!currentUserId) return;
 
-    const loadCount = async () => {
+    let channel = null;
+    let cancelled = false;
+
+    const loadCountAndSubscribe = async () => {
       const { data: conversations } = await supabase
         .from("conversations")
         .select("id, user_a, user_b, last_read_a, last_read_b")
         .or(`user_a.eq.${currentUserId},user_b.eq.${currentUserId}`);
 
-      myConvoIdsRef.current = new Set((conversations || []).map((c) => c.id));
+      if (cancelled) return;
 
+      myConvoIdsRef.current = new Set((conversations || []).map((c) => c.id));
       const convoIds = (conversations || []).map((c) => c.id);
+
       if (convoIds.length === 0) {
         setUnreadCount(0);
-        return;
+      } else {
+        const { data: lastMessages } = await supabase
+          .from("messages")
+          .select("conversation_id, sender_id, created_at")
+          .in("conversation_id", convoIds)
+          .order("created_at", { ascending: false });
+
+        if (cancelled) return;
+
+        let count = 0;
+        (conversations || []).forEach((c) => {
+          const last = (lastMessages || []).find((m) => m.conversation_id === c.id);
+          if (!last) return;
+          const myLastRead = c.user_a === currentUserId ? c.last_read_a : c.last_read_b;
+          if (last.sender_id !== currentUserId && new Date(last.created_at) > new Date(myLastRead)) {
+            count += 1;
+          }
+        });
+        setUnreadCount(count);
       }
 
-      const { data: lastMessages } = await supabase
-        .from("messages")
-        .select("conversation_id, sender_id, created_at")
-        .in("conversation_id", convoIds)
-        .order("created_at", { ascending: false });
-
-      let count = 0;
-      (conversations || []).forEach((c) => {
-        const last = (lastMessages || []).find((m) => m.conversation_id === c.id);
-        if (!last) return;
-        const myLastRead = c.user_a === currentUserId ? c.last_read_a : c.last_read_b;
-        if (last.sender_id !== currentUserId && new Date(last.created_at) > new Date(myLastRead)) {
-          count += 1;
-        }
-      });
-      setUnreadCount(count);
+      // Only subscribe once we know which conversations to filter for.
+      // No conversations yet -> nothing to listen to until user starts one
+      // (this effect re-runs when pathname changes away from /messages,
+      // which is an acceptable point to pick up newly created conversations).
+      if (convoIds.length > 0) {
+        channel = supabase
+          .channel(`msg-badge:${currentUserId}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "INSERT",
+              schema: "public",
+              table: "messages",
+              filter: `conversation_id=in.(${convoIds.join(",")})`,
+            },
+            (payload) => {
+              if (payload.new.sender_id === currentUserId) return;
+              if (!myConvoIdsRef.current.has(payload.new.conversation_id)) return;
+              setUnreadCount((c) => c + 1);
+            }
+          )
+          .subscribe();
+      }
     };
 
-    loadCount();
+    loadCountAndSubscribe();
 
-    const channel = supabase
-      .channel(`msg-badge:${currentUserId}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
-        if (payload.new.sender_id === currentUserId) return;
-        if (!myConvoIdsRef.current.has(payload.new.conversation_id)) return;
-        setUnreadCount((c) => c + 1);
-      })
-      .subscribe();
-
-    return () => supabase.removeChannel(channel);
-  }, [currentUserId, supabase]);
+    return () => {
+      cancelled = true;
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [currentUserId, supabase, pathname]);
 
   useEffect(() => {
     if (pathname.startsWith("/messages")) setUnreadCount(0);
