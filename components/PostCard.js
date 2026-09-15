@@ -1,19 +1,21 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
-import { Heart, MessageCircle, Bookmark, Send, X, MoreHorizontal, Trash2, Pencil, ShieldAlert } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, Send, X, MoreHorizontal, Trash2, Pencil } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import CommentsSheet from "@/components/CommentsSheet";
 import ShareSheet from "@/components/ShareSheet";
+import Sheet from "@/components/Sheet";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
-export default function PostCard({ post, currentUserId, onPostDeleted, autoOpenComments = false, highlightCommentId = null }) {
+export default function PostCard({ post, currentUserId, onPostDeleted }) {
   const supabase = createClient();
   const [liked, setLiked] = useState(post.likedByMe);
   const [likeCount, setLikeCount] = useState(post.likeCount);
   const [saved, setSaved] = useState(post.savedByMe);
   const [comments, setComments] = useState(post.comments);
-  const [commentsOpen, setCommentsOpen] = useState(autoOpenComments);
+  const [commentsOpen, setCommentsOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [burst, setBurst] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -29,26 +31,6 @@ export default function PostCard({ post, currentUserId, onPostDeleted, autoOpenC
   const [savingEdit, setSavingEdit] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [isDeleted, setIsDeleted] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-
-  useEffect(() => {
-    if (isOwner || !currentUserId) return;
-    let cancelled = false;
-    const checkAdmin = async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("is_admin")
-        .eq("id", currentUserId)
-        .single();
-      if (!cancelled && !error && data?.is_admin) {
-        setIsAdmin(true);
-      }
-    };
-    checkAdmin();
-    return () => {
-      cancelled = true;
-    };
-  }, [isOwner, currentUserId]);
 
   const toggleLike = async () => {
     if (liked) {
@@ -91,7 +73,7 @@ export default function PostCard({ post, currentUserId, onPostDeleted, autoOpenC
     const { data, error } = await supabase
       .from("comments")
       .insert({ post_id: post.id, user_id: currentUserId, text, parent_id: parentId || null })
-      .select("id, text, user_id, parent_id, profiles(username, avatar_url)")
+      .select("id, text, user_id, parent_id, profiles(username)")
       .single();
     if (!error && data) setComments((c) => [...c, data]);
   };
@@ -99,6 +81,7 @@ export default function PostCard({ post, currentUserId, onPostDeleted, autoOpenC
   const deleteComment = async (id) => {
     const { error } = await supabase.from("comments").delete().eq("id", id).eq("user_id", currentUserId);
     if (!error) {
+      // remove the comment and any replies under it (mirrors the DB's ON DELETE CASCADE)
       setComments((c) => c.filter((cm) => cm.id !== id && cm.parent_id !== id));
     } else {
       console.error("Delete comment failed:", error.message);
@@ -135,23 +118,9 @@ export default function PostCard({ post, currentUserId, onPostDeleted, autoOpenC
 
   const confirmDelete = async () => {
     setDeleting(true);
-    const { error } = await supabase.from("posts").delete().eq("id", post.id);
+    const { error } = await supabase.from("posts").delete().eq("id", post.id).eq("user_id", currentUserId);
     setDeleting(false);
     if (!error) {
-      // Notify the post's owner if an admin deleted someone else's post.
-      // Owner deleting their own post: no notification needed.
-      if (!isOwner && post.user_id) {
-        const { data: { user: adminUser } } = await supabase.auth.getUser();
-        const { error: notifError } = await supabase.from("notifications").insert({
-          recipient_id: post.user_id,
-          actor_id: adminUser?.id,
-          type: "post_removed",
-          excerpt: "One of your posts was removed by an admin for violating community guidelines.",
-        });
-        if (notifError) {
-          console.error("Notify user of post removal failed:", notifError.message);
-        }
-      }
       setConfirmDeleteOpen(false);
       setIsDeleted(true);
       onPostDeleted?.(post.id);
@@ -161,8 +130,6 @@ export default function PostCard({ post, currentUserId, onPostDeleted, autoOpenC
   };
 
   if (isDeleted) return null;
-
-  const canOpenMenu = isOwner || isAdmin;
 
   return (
     <div className="border-b border-hairline pb-3.5">
@@ -199,7 +166,7 @@ export default function PostCard({ post, currentUserId, onPostDeleted, autoOpenC
             )}
           </div>
         </div>
-        {canOpenMenu && (
+        {isOwner && (
           <button onClick={() => setMenuOpen(true)} aria-label="Post options" className="text-ink p-1.5">
             <MoreHorizontal size={20} strokeWidth={1.6} />
           </button>
@@ -284,7 +251,6 @@ export default function PostCard({ post, currentUserId, onPostDeleted, autoOpenC
         onAddComment={addComment}
         onDeleteComment={deleteComment}
         currentUserId={currentUserId}
-        highlightCommentId={highlightCommentId}
       />
 
       <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} post={post} currentUserId={currentUserId} />
@@ -310,62 +276,42 @@ export default function PostCard({ post, currentUserId, onPostDeleted, autoOpenC
         </div>
       )}
 
-      {menuOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-end" onClick={() => setMenuOpen(false)}>
-          <div className="w-full bg-paper rounded-t-2xl overflow-hidden pb-safe" onClick={(e) => e.stopPropagation()}>
-            {isOwner && (
-              <button
-                onClick={startEdit}
-                className="w-full flex items-center gap-2.5 px-4 py-3.5 border-b border-hairline text-[14px]"
-              >
-                <Pencil size={18} strokeWidth={1.6} />
-                Edit caption
-              </button>
-            )}
-            <button
-              onClick={() => {
-                setMenuOpen(false);
-                setConfirmDeleteOpen(true);
-              }}
-              className="w-full flex items-center gap-2.5 px-4 py-3.5 border-b border-hairline text-[14px] text-red-500"
-            >
-              {isOwner ? <Trash2 size={18} strokeWidth={1.6} /> : <ShieldAlert size={18} strokeWidth={1.6} />}
-              {isOwner ? "Delete post" : "Delete post (admin)"}
-            </button>
-            <button onClick={() => setMenuOpen(false)} className="w-full px-4 py-3.5 text-[14px] font-semibold">
-              Cancel
-            </button>
-          </div>
+      <Sheet open={menuOpen} onClose={() => setMenuOpen(false)}>
+        <div className="pb-safe">
+          <button
+            onClick={startEdit}
+            className="w-full flex items-center gap-2.5 px-4 py-3.5 border-b border-hairline text-[14px]"
+          >
+            <Pencil size={18} strokeWidth={1.6} />
+            Edit caption
+          </button>
+          <button
+            onClick={() => {
+              setMenuOpen(false);
+              setConfirmDeleteOpen(true);
+            }}
+            className="w-full flex items-center gap-2.5 px-4 py-3.5 border-b border-hairline text-[14px] text-red-500"
+          >
+            <Trash2 size={18} strokeWidth={1.6} />
+            Delete post
+          </button>
+          <button onClick={() => setMenuOpen(false)} className="w-full px-4 py-3.5 text-[14px] font-semibold">
+            Cancel
+          </button>
         </div>
-      )}
+      </Sheet>
 
-      {confirmDeleteOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center px-6" onClick={() => setConfirmDeleteOpen(false)}>
-          <div className="w-full max-w-xs bg-paper rounded-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="px-4 pt-4 pb-3 text-center">
-              <div className="text-[14px] font-semibold">
-                {isOwner ? "Delete this post?" : "Delete this user's post?"}
-              </div>
-              <div className="text-[12.5px] text-inksoft pt-1">This can't be undone.</div>
-            </div>
-            <div className="flex border-t border-hairline">
-              <button
-                onClick={() => setConfirmDeleteOpen(false)}
-                className="flex-1 py-3 text-[14px] border-r border-hairline"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmDelete}
-                disabled={deleting}
-                className="flex-1 py-3 text-[14px] font-semibold text-red-500 disabled:opacity-50"
-              >
-                {deleting ? "Deleting…" : "Delete"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        onClose={() => setConfirmDeleteOpen(false)}
+        onConfirm={confirmDelete}
+        title="Delete this post?"
+        description="This can't be undone."
+        confirmLabel="Delete"
+        pendingLabel="Deleting…"
+        pending={deleting}
+        destructive
+      />
     </div>
   );
 }
