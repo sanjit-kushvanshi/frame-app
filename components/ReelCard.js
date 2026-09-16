@@ -1,10 +1,12 @@
 "use client";
+
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { Heart, MessageCircle, Send, Volume2, VolumeX, Trash2, Pencil, Bookmark } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import CommentsSheet from "@/components/CommentsSheet";
 import ShareSheet from "@/components/ShareSheet";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 export default function ReelCard({ post, currentUserId, isActive, onDeleted }) {
   const supabase = createClient();
@@ -18,12 +20,10 @@ export default function ReelCard({ post, currentUserId, isActive, onDeleted }) {
   const [muted, setMuted] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
-
   const [caption, setCaption] = useState(post.caption);
   const [isEditing, setIsEditing] = useState(false);
   const [editCaption, setEditCaption] = useState(post.caption || "");
   const [savingEdit, setSavingEdit] = useState(false);
-
   const isMine = post.user_id === currentUserId;
 
   useEffect(() => {
@@ -153,6 +153,7 @@ export default function ReelCard({ post, currentUserId, isActive, onDeleted }) {
             />
             <span className="text-white text-[13px] font-semibold">{post.profiles?.username}</span>
           </Link>
+
           {isEditing ? (
             <div onClick={(e) => e.stopPropagation()}>
               <textarea
@@ -202,24 +203,20 @@ export default function ReelCard({ post, currentUserId, isActive, onDeleted }) {
         onDeleteComment={deleteComment}
         currentUserId={currentUserId}
       />
+
       <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} post={post} currentUserId={currentUserId} />
 
-      {confirmingDelete && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-6" onClick={() => setConfirmingDelete(false)}>
-          <div onClick={(e) => e.stopPropagation()} className="bg-paper rounded-2xl p-5 w-full max-w-[300px]">
-            <div className="font-semibold text-[15px] mb-1">Delete this reel?</div>
-            <div className="text-inksoft text-[13px] mb-4">This can't be undone.</div>
-            <div className="flex gap-2">
-              <button onClick={() => setConfirmingDelete(false)} className="flex-1 border border-hairline rounded-lg py-2.5 text-[13px] font-semibold">
-                Cancel
-              </button>
-              <button onClick={deleteReel} disabled={deleting} className="flex-1 bg-amber text-white rounded-lg py-2.5 text-[13px] font-semibold disabled:opacity-50">
-                {deleting ? "Deleting..." : "Delete"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={confirmingDelete}
+        onClose={() => setConfirmingDelete(false)}
+        onConfirm={deleteReel}
+        title="Delete this reel?"
+        description="This can't be undone."
+        confirmLabel="Delete"
+        pendingLabel="Deleting…"
+        pending={deleting}
+        destructive
+      />
     </div>
   );
 }
