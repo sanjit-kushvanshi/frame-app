@@ -1,4 +1,5 @@
 "use client";
+
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
@@ -99,8 +100,12 @@ export default function TopBar({ currentUserId }) {
     if (pathname.startsWith("/messages")) setUnreadCount(0);
   }, [pathname]);
 
+  // Notifications: polled every 60s instead of realtime, to reduce
+  // permanently-open connections (this component mounts on every page).
   useEffect(() => {
     if (!currentUserId) return;
+
+    let cancelled = false;
 
     const loadNotifCount = async () => {
       const { count } = await supabase
@@ -108,20 +113,17 @@ export default function TopBar({ currentUserId }) {
         .select("*", { count: "exact", head: true })
         .eq("recipient_id", currentUserId)
         .eq("read", false);
-      setNotifUnreadCount(count || 0);
+
+      if (!cancelled) setNotifUnreadCount(count || 0);
     };
+
     loadNotifCount();
+    const intervalId = setInterval(loadNotifCount, 60000);
 
-    const channel = supabase
-      .channel(`notif-badge:${currentUserId}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "notifications", filter: `recipient_id=eq.${currentUserId}` },
-        () => setNotifUnreadCount((c) => c + 1)
-      )
-      .subscribe();
-
-    return () => supabase.removeChannel(channel);
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
   }, [currentUserId, supabase]);
 
   useEffect(() => {
@@ -163,7 +165,6 @@ export default function TopBar({ currentUserId }) {
           <div key={i} className="w-[5px] h-[5px] rounded-sm bg-hairline" />
         ))}
       </div>
-
       {confirmingLogout && (
         <div
           className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-6"
