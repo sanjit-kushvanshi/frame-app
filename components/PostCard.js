@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { Heart, MessageCircle, Bookmark, Send, X, MoreHorizontal, Trash2, Pencil } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -31,6 +31,18 @@ export default function PostCard({ post, currentUserId, onPostDeleted }) {
   const [savingEdit, setSavingEdit] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [isDeleted, setIsDeleted] = useState(false);
+  const [mountVisible, setMountVisible] = useState(false);
+  const raf2Ref = useRef(null);
+
+  useEffect(() => {
+    const raf1 = requestAnimationFrame(() => {
+      raf2Ref.current = requestAnimationFrame(() => setMountVisible(true));
+    });
+    return () => {
+      cancelAnimationFrame(raf1);
+      if (raf2Ref.current) cancelAnimationFrame(raf2Ref.current);
+    };
+  }, []);
 
   const toggleLike = async () => {
     if (liked) {
@@ -81,7 +93,6 @@ export default function PostCard({ post, currentUserId, onPostDeleted }) {
   const deleteComment = async (id) => {
     const { error } = await supabase.from("comments").delete().eq("id", id).eq("user_id", currentUserId);
     if (!error) {
-      // remove the comment and any replies under it (mirrors the DB's ON DELETE CASCADE)
       setComments((c) => c.filter((cm) => cm.id !== id && cm.parent_id !== id));
     } else {
       console.error("Delete comment failed:", error.message);
@@ -132,7 +143,11 @@ export default function PostCard({ post, currentUserId, onPostDeleted }) {
   if (isDeleted) return null;
 
   return (
-    <div className="border-b border-hairline pb-3.5">
+    <div
+      className={`border-b border-hairline pb-3.5 transition-all duration-300 ease-out motion-reduce:transition-none motion-reduce:opacity-100 motion-reduce:translate-y-0 ${
+        mountVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
+      }`}
+    >
       <div className="flex items-center justify-between pl-4 pr-2.5 pt-3 pb-2.5">
         <div className="flex items-center gap-2.5">
           <Link href={post.communities ? `/communities/${post.communities.id}` : `/profile/${post.profiles?.username}`}>
