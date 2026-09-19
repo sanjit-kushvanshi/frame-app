@@ -1,4 +1,5 @@
 "use client";
+
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { PlusSquare } from "lucide-react";
@@ -38,7 +39,6 @@ export default function StoriesRow({ myUsername, myAvatar, myStories, groups, cu
       } else {
         uploadFile = await compressImage(file, { maxDim: 1080, targetBytes: 200 * 1024 });
       }
-
       const { data: { user } } = await supabase.auth.getUser();
       const ext = isVideo ? file.name.split(".").pop() : "jpg";
       const path = `${user.id}/${Date.now()}.${ext}`;
@@ -61,7 +61,7 @@ export default function StoriesRow({ myUsername, myAvatar, myStories, groups, cu
       <div className="flex flex-col items-center gap-1.5 flex-shrink-0" style={{ width: 64 }}>
         <div
           onClick={() => (myStories?.length > 0 ? setViewerIndex(-1) : fileInputRef.current?.click())}
-          className="relative w-[54px] h-[54px] rounded-full cursor-pointer"
+          className="relative w-[54px] h-[54px] rounded-full cursor-pointer transition-transform duration-150 active:scale-90 motion-reduce:active:scale-100"
           style={myStories?.length > 0 ? { padding: 2, background: "conic-gradient(#FF6B35, #F4B942, #FF6B35)" } : {}}
         >
           <Avatar
@@ -75,7 +75,7 @@ export default function StoriesRow({ myUsername, myAvatar, myStories, groups, cu
               e.stopPropagation();
               fileInputRef.current?.click();
             }}
-            className="absolute -bottom-0.5 -right-0.5 bg-amber text-white rounded-full w-[18px] h-[18px] flex items-center justify-center border-2 border-paper"
+            className="absolute -bottom-0.5 -right-0.5 bg-amber text-white rounded-full w-[18px] h-[18px] flex items-center justify-center border-2 border-paper transition-transform duration-150 active:scale-90 motion-reduce:active:scale-100"
           >
             <PlusSquare size={10} />
           </button>
@@ -93,7 +93,10 @@ export default function StoriesRow({ myUsername, myAvatar, myStories, groups, cu
           className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer"
           style={{ width: 64 }}
         >
-          <div className="w-[54px] h-[54px] rounded-full p-[2px]" style={{ background: "conic-gradient(#FF6B35, #F4B942, #FF6B35)" }}>
+          <div
+            className="w-[54px] h-[54px] rounded-full p-[2px] transition-transform duration-150 active:scale-90 motion-reduce:active:scale-100"
+            style={{ background: "conic-gradient(#FF6B35, #F4B942, #FF6B35)" }}
+          >
             <Avatar username={g.username} avatarUrl={g.avatar_url} size={50} className="border-2 border-paper block" />
           </div>
           <span className="text-[11px] font-mono text-ink block w-full text-center overflow-hidden whitespace-nowrap text-ellipsis">
