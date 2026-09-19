@@ -206,7 +206,7 @@ export default function PostCard({ post, currentUserId, onPostDeleted }) {
 
       <div className="flex items-center justify-between px-4 pt-2.5">
         <div className="flex gap-4">
-          <button onClick={toggleLike} aria-label="Like" className={liked ? "text-amber" : "text-ink"}>
+          <button onClick={toggleLike} aria-label="Like" className={liked ? "text-red-500" : "text-ink"}>
             <Heart size={24} fill={liked ? "currentColor" : "none"} strokeWidth={1.6} />
           </button>
           <button onClick={() => setCommentsOpen(true)} aria-label="Comment" className="text-ink">
