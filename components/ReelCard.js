@@ -179,7 +179,7 @@ export default function ReelCard({ post, currentUserId, isActive, onDeleted }) {
 
         <div className="flex flex-col items-center gap-4 pl-3 flex-shrink-0">
           <button onClick={toggleLike} className="flex flex-col items-center gap-1">
-            <Heart size={26} color="#fff" fill={liked ? "#FF6B35" : "none"} strokeWidth={1.6} />
+            <Heart size={26} color="#fff" fill={liked ? "#EF4444" : "none"} strokeWidth={1.6} />
             <span className="text-white text-[11px] font-mono">{likeCount}</span>
           </button>
           <button onClick={() => setCommentsOpen(true)} className="flex flex-col items-center gap-1">
