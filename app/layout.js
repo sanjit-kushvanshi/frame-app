@@ -18,6 +18,11 @@ const themeScript = `
       ? saved
       : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
     document.documentElement.setAttribute('data-theme', theme);
+
+    var accent = localStorage.getItem('frame-accent');
+    if (accent) {
+      document.documentElement.setAttribute('data-accent', accent);
+    }
   } catch (e) {}
 })();
 `;
