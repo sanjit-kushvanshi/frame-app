@@ -22,7 +22,7 @@ export default async function MainLayout({ children }) {
 
   return (
     <div className="min-h-screen flex justify-center">
-      <div className="w-full max-w-[480px] min-h-screen flex flex-col shadow-[0_0_40px_rgba(0,0,0,0.06)]">
+      <div className="w-full max-w-[480px] h-[100dvh] flex flex-col overflow-hidden shadow-[0_0_40px_rgba(0,0,0,0.06)]">
         <ConditionalTopBar currentUserId={user.id} />
         <div className="flex-1 min-h-0 overflow-hidden">{children}</div>
         <BottomNav myUsername={profile?.username} currentUserId={user.id} />
