@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import TopBar from "@/components/TopBar";
+import ConditionalTopBar from "@/components/ConditionalTopBar";
 import BottomNav from "@/components/BottomNav";
 
 export default async function MainLayout({ children }) {
@@ -23,7 +23,7 @@ export default async function MainLayout({ children }) {
   return (
     <div className="min-h-screen flex justify-center">
       <div className="w-full max-w-[480px] min-h-screen flex flex-col shadow-[0_0_40px_rgba(0,0,0,0.06)]">
-        <TopBar currentUserId={user.id} />
+        <ConditionalTopBar currentUserId={user.id} />
         <div className="flex-1">{children}</div>
         <BottomNav myUsername={profile?.username} currentUserId={user.id} />
       </div>
