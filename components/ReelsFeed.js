@@ -43,7 +43,7 @@ export default function ReelsFeed({ posts: initialPosts, currentUserId }) {
   return (
     <div
       ref={containerRef}
-      className="h-full overflow-y-scroll snap-y snap-mandatory bg-black"
+      className="h-full overflow-y-scroll snap-y snap-mandatory bg-black overscroll-contain"
       style={{ scrollBehavior: "smooth" }}
     >
       <button onClick={() => router.push("/")} className="fixed top-4 left-4 z-30 text-white bg-black/40 rounded-full p-2">
