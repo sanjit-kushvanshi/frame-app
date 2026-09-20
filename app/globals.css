@@ -47,6 +47,9 @@
 [data-theme="dark"][data-accent="mocha"] { --paper: #170F08; --paperdim: #241A10; --ink: #F2E3D0; --inksoft: #B99A78; --hairline: #40301F; --amber: #A9754F; --ambersoft: #402B18; }
 
 html, body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
   background: var(--paper);
   color: var(--ink);
 }
