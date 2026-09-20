@@ -29,7 +29,7 @@ export default function ReelsFeed({ posts: initialPosts, currentUserId }) {
 
   if (!posts || posts.length === 0) {
     return (
-      <div className="h-screen bg-black flex flex-col items-center justify-center text-white">
+      <div className="h-full bg-black flex flex-col items-center justify-center text-white">
         <button onClick={() => router.push("/")} className="absolute top-4 left-4 text-white">
           <ChevronLeft size={24} />
         </button>
@@ -43,14 +43,14 @@ export default function ReelsFeed({ posts: initialPosts, currentUserId }) {
   return (
     <div
       ref={containerRef}
-      className="h-screen overflow-y-scroll snap-y snap-mandatory bg-black"
+      className="h-full overflow-y-scroll snap-y snap-mandatory bg-black"
       style={{ scrollBehavior: "smooth" }}
     >
       <button onClick={() => router.push("/")} className="fixed top-4 left-4 z-30 text-white bg-black/40 rounded-full p-2">
         <ChevronLeft size={22} />
       </button>
       {posts.map((post, i) => (
-        <div key={post.id} className="h-screen w-full snap-start">
+        <div key={post.id} className="h-full w-full snap-start">
           <ReelCard post={post} currentUserId={currentUserId} isActive={i === activeIndex} onDeleted={handleDeleted} />
         </div>
       ))}
