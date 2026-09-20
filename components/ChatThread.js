@@ -698,7 +698,7 @@ if (!error && data) {
   };
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col h-full">
       <div className="flex items-center gap-2.5 px-4 py-3.5 border-b border-hairline">
         <button onClick={() => router.push("/messages")}><ChevronLeft size={22} /></button>
         {isGroup ? (
