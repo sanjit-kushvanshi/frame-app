@@ -190,7 +190,14 @@ export default function PostCard({ post, currentUserId, onPostDeleted }) {
 
       <div className="relative bg-paperdim" onClick={handleImgTap}>
         {isVideo ? (
-          <video src={post.image_url} controls playsInline className="w-full block aspect-square object-contain" onClick={(e) => e.stopPropagation()} />
+          <video
+  src={`${post.image_url}#t=0.1`}
+  controls
+  playsInline
+  preload="metadata"
+  className="w-full block aspect-square object-contain"
+  onClick={(e) => e.stopPropagation()}
+/>
         ) : (
           <img src={post.image_url} alt={caption} className="w-full block aspect-square object-contain" draggable={false} />
         )}
