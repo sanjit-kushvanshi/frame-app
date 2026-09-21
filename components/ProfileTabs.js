@@ -137,7 +137,13 @@ export default function ProfileTabs({ allItems, reels, isMe, profileUserId }) {
             <Link key={p.id} href={`/post/${p.id}`} className="aspect-square overflow-hidden block relative bg-ink">
               {p.is_reel ? (
                 <>
-                  <video src={p.image_url} className="w-full h-full object-cover block" />
+                  <video
+  src={`${p.image_url}#t=0.1`}
+  className="w-full h-full object-cover block"
+  preload="metadata"
+  muted
+  playsInline
+/>
                   <Clapperboard size={14} className="absolute top-1.5 right-1.5 text-white" style={{ filter: "drop-shadow(0 0 2px rgba(0,0,0,0.6))" }} />
                 </>
               ) : (
