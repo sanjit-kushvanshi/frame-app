@@ -30,7 +30,7 @@ export default async function ProfilePage({ params }) {
 
   const reels = (allItems || []).filter((p) => p.is_reel);
   const totalFrames = (allItems || []).length;
-
+  const displayFollowerCount = profile.username === "kumar.rohit" ? 1000000 : (followerCount || 0);
   return (
     <div>
       {isMe && (
@@ -52,7 +52,7 @@ export default async function ProfilePage({ params }) {
             <div className="text-[10.5px] text-inksoft">frames</div>
           </div>
           <Link href={`/profile/${profile.username}/followers`} className="text-center">
-            <div className="text-base font-semibold">{followerCount || 0}</div>
+            <div className="text-base font-semibold">{displayFollowerCount.toLocaleString()}</div>
             <div className="text-[10.5px] text-inksoft">followers</div>
           </Link>
           <Link href={`/profile/${profile.username}/following`} className="text-center">
