@@ -16,7 +16,7 @@ export const metadata = {
     siteName: "Frame",
     images: [
       {
-        url: "/og-image.png",
+        url: "/og-image-v2.png",
         width: 1200,
         height: 630,
       },
@@ -26,7 +26,7 @@ export const metadata = {
     card: "summary_large_image",
     title: "Frame",
     description: "A photo journal for people who still think in rolls of film.",
-    images: ["/og-image.png"],
+    images: ["/og-image-v2.png"],
   },
 };
 const themeScript = `
