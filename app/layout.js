@@ -8,6 +8,25 @@ export const metadata = {
     icon: "/icon.png",
     apple: "/icon.png",
   },
+  openGraph: {
+    title: "Frame",
+    description: "A photo journal for people who still think in rolls of film.",
+    url: "https://getframeapp.vercel.app",
+    siteName: "Frame",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Frame",
+    description: "A photo journal for people who still think in rolls of film.",
+    images: ["/og-image.png"],
+  },
 };
 
 const themeScript = `
