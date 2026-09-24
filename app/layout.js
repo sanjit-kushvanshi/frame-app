@@ -1,6 +1,7 @@
 import "./globals.css";
 
 export const metadata = {
+  metadataBase: new URL("https://getframeapp.vercel.app"),
   title: "Frame",
   description: "A photo journal for people who still think in rolls of film.",
   manifest: "/manifest.json",
@@ -28,7 +29,6 @@ export const metadata = {
     images: ["/og-image.png"],
   },
 };
-
 const themeScript = `
 (function() {
   try {
