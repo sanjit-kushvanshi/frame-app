@@ -55,7 +55,7 @@ export default function NewMessagePage() {
     if (!convo) {
       const { data: created, error: convoError } = await supabase
         .from("conversations")
-        .insert({ user_a: a, user_b: b })
+        .insert({ user_a: a, user_b: b, created_by: currentUserId })
         .select("id")
         .single();
 
