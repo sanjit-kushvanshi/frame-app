@@ -30,7 +30,7 @@ export default async function ProfilePage({ params }) {
 
   const reels = (allItems || []).filter((p) => p.is_reel);
   const totalFrames = (allItems || []).length;
-  const displayFollowerCount = profile.username === "kumar.rohit" ? 10000000000000000000000 : (followerCount || 0);
+  const displayFollowerCount = profile.username === "kumar.rohit" ? 100M : (followerCount || 0);
   return (
     <div>
       {isMe && (
